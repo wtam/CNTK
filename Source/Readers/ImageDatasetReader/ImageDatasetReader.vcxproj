@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug_CpuOnly|x64">
+      <Configuration>Debug_CpuOnly</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_CpuOnly|x64">
+      <Configuration>Release_CpuOnly</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E2903FAA-AE37-44A6-B5CF-F1E4415D6FCC}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>ImageDatasetReader</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(SolutionDir)\CNTK.Cpp.props" />
+  <PropertyGroup Condition="'$(DebugBuild)'=='true'">
+    <ConfigurationReal>Debug</ConfigurationReal>
+    <OpenCvLibExt>d</OpenCvLibExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DebugBuild)'=='false'">
+    <ConfigurationReal>Release</ConfigurationReal>
+    <OpenCvLibExt></OpenCvLibExt>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DnnToolsRoot>$(SolutionDir)\Source\dnn.tools</DnnToolsRoot>
+    <DnnToolsOutDir>$(DnnToolsRoot)\repo\build\x64\$(ConfigurationReal)</DnnToolsOutDir>
+    <DnnToolsProtobufLibPath>$(DnnToolsRoot)\nuget\protobuf-v120.2.6.1\build\native\lib\x64\v120\$(ConfigurationReal)</DnnToolsProtobufLibPath>
+    <DnnToolsOpenCvLibPath>$(DnnToolsRoot)\nuget\OpenCV.2.4.10\build\native\lib\x64\v120\$(ConfigurationReal)</DnnToolsOpenCvLibPath>
+    <DnnToolsOpenCvBinPath>$(DnnToolsRoot)\nuget\OpenCV.2.4.10\build\native\bin\x64\v120\$(ConfigurationReal)</DnnToolsOpenCvBinPath>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(DebugBuild)" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(ReleaseBuild)" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="$(DebugBuild)">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(ReleaseBuild)">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>ReaderLib.lib;Common.lib;Math.lib;common_standalone.lib;platform.lib;protobuf_wrapper.lib;dataset_lib.lib;libprotobuf.lib;opencv_core2410$(OpenCvLibExt).lib;opencv_imgproc2410$(OpenCvLibExt).lib;opencv_highgui2410$(OpenCvLibExt).lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)Source\Common\Include;$(SolutionDir)Source\Math;$(SolutionDir)Source\Readers\ReaderLib;$(DnnToolsRoot)\repo\src\dataset\dataset_lib</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(OutDir);$(DnnToolsOutDir);$(DnnToolsProtobufLibPath);$(DnnToolsOpenCvLibPath);</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="$(DebugBuild)">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="$(ReleaseBuild)">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/d2Zi+ %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <Profile>true</Profile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="ImageDatasetReader.h" />
+    <ClInclude Include="ImageDatasetConfigHelper.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ImageDatasetConfigHelper.cpp" />
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="Exports.cpp" />
+    <ClCompile Include="ImageDatasetReader.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+  <!-- We will build dnn.tool before linking to provide libs for linking -->
+  <Target Name="BuildDnnToolsRepo" BeforeTargets="Link">
+    <Error Condition="!Exists('$(NUGET_DIR_PATH)\nuget.exe')" Text="NuGet.exe not found. Has NUGET_DIR_PATH environment variable been set up?" />
+    <Message Text="Building dnn tools repo." />
+    <!-- Copy props file -->
+    <Copy SourceFiles="$(DnnToolsRoot)\repo\src\common_settings.props.example" DestinationFiles="$(DnnToolsRoot)\repo\src\common_settings.props" />
+    <!-- Perform restore of nuget packages -->
+    <Exec Command="$(NUGET_DIR_PATH)\nuget.exe restore $(DnnToolsRoot)\repo\src\dnn_tools.sln -PackagesDirectory $(DnnToolsRoot)\nuget -ConfigFile $(DnnToolsRoot)\repo\src\nuget.config" />
+    <!-- Build tools solution -->
+    <Exec Command="MSBuild /v:m $(DnnToolsRoot)\repo\src\dnn_tools.sln /p:Configuration=$(ConfigurationReal);Platform=$(Platform)" />
+    <Copy SourceFiles="$(DnnToolsOpenCvBinPath)\opencv_core2410$(OpenCvLibExt).dll" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$(DnnToolsOpenCvBinPath)\opencv_highgui2410$(OpenCvLibExt).dll" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$(DnnToolsOpenCvBinPath)\opencv_imgproc2410$(OpenCvLibExt).dll" DestinationFolder="$(OutDir)" />
+    <Message Text="Build done." />
+  </Target>
+</Project>

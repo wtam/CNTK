@@ -111,6 +111,8 @@ publish/
 # NuGet Packages Directory
 ## TODO: If you have NuGet Package Restore enabled, uncomment the next line
 #packages/
+# dnn.tools repo downloads nuget dependencies into this directory.
+Nuget
 
 # Windows Azure Build Output
 csx

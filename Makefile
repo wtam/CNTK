@@ -743,6 +743,50 @@ $(IMAGEREADER): $(IMAGEREADER_OBJ) | $(CNTKMATH_LIB)
 endif
 
 ########################################
+# ImageDatasetReader plugin
+########################################
+
+ifdef OPENCV_PATH
+
+DNNTOOLSDIR := $(SOURCEDIR)/dnn.tools/repo
+
+IMAGE_DATASET_READER_LIBS += -ldataset_lib -lcommon_standalone -lplatform -lprotobuf_wrapper -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs -lprotobuf
+
+IMAGEDATASETREADER_SRC =\
+  $(SOURCEDIR)/Readers/ImageDatasetReader/Exports.cpp \
+  $(SOURCEDIR)/Readers/ImageDatasetReader/ImageDatasetConfigHelper.cpp \
+  $(SOURCEDIR)/Readers/ImageDatasetReader/ImageDatasetReader.cpp \
+  
+IMAGEDATASETREADER_OBJ := $(patsubst %.cpp, $(OBJDIR)/%.o, $(IMAGEDATASETREADER_SRC))
+
+IMAGEDATASETREADER:=$(LIBDIR)/ImageDatasetReader.so
+ALL += $(IMAGEDATASETREADER)
+SRC += $(IMAGEDATASETREADER_SRC)
+
+INCLUDEPATH += $(DNNTOOLSDIR)/src/dataset/dataset_lib/
+LIBPATH += $(DNNTOOLSDIR)/build/$(BUILDTYPE)/dataset/dataset_lib $(DNNTOOLSDIR)/build/$(BUILDTYPE)/common/common_standalone $(DNNTOOLSDIR)/build/$(BUILDTYPE)/common/platform $(DNNTOOLSDIR)/build/$(BUILDTYPE)/common/protobuf_wrapper $(OPENCV_PATH)/lib
+
+ifeq ("$(BUILDTYPE)", "debug")
+  DNNTOOLS_MAKE_OPTIONS = DEBUG=1 DNNTOOLS_OPENCV_PATH=$(OPENCV_PATH)
+endif
+
+ifeq ("$(BUILDTYPE)", "release")
+  DNNTOOLS_MAKE_OPTIONS = DNNTOOLS_OPENCV_PATH=$(OPENCV_PATH)
+endif
+
+$(IMAGEDATASETREADER): $(IMAGEDATASETREADER_OBJ)
+	@echo $(SEPARATOR)
+	@echo Building dnn.tools repo
+	cp $(DNNTOOLSDIR)/src/Makefile.config.example $(DNNTOOLSDIR)/src/Makefile.config && \
+	make --directory=$(DNNTOOLSDIR)/src $(DNNTOOLS_MAKE_OPTIONS) common_target && \
+	make --directory=$(DNNTOOLSDIR)/src $(DNNTOOLS_MAKE_OPTIONS) ds_lib_target && \
+	echo Done building dnn.tools repo && \
+	mkdir -p $(dir $@) && \
+	$(CXX) $(LDFLAGS) -shared $(patsubst %,-L%, $(LIBDIR) $(LIBPATH)) $(patsubst %,$(RPATH)%, $(ORIGINDIR) $(LIBPATH)) -o $@ $^ $(IMAGE_DATASET_READER_LIBS)
+
+endif
+
+########################################
 # 1bit SGD setup
 ########################################
 
