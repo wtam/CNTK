@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <BuildDir>$(SolutionDir)..\build</BuildDir>
+    <NugetDir>$(SolutionDir)..\..\nuget</NugetDir>
+    <CommonDir>$(SolutionDir)common</CommonDir>
+    <DsLibDir>$(SolutionDir)dataset\dataset_lib</DsLibDir>
+    <CaffeRepositoryRoot></CaffeRepositoryRoot>
+    <CaffeInterfaceDir>$(CaffeRepositoryRoot)\include\caffe\util</CaffeInterfaceDir>
+    <CntkRepositoryRoot></CntkRepositoryRoot>
+    <!-- Macros that control building projects -->
+    <BuildCommonCmdLineParser>true</BuildCommonCmdLineParser>
+    <BuildCommonStandalone>true</BuildCommonStandalone>
+    <BuildCommonPlatform>true</BuildCommonPlatform>
+    <BuildCommonProtobufWrapper>true</BuildCommonProtobufWrapper>
+    <BuildCaffeDynLib>false</BuildCaffeDynLib>
+    <BuildDatatsetLib>true</BuildDatatsetLib>
+    <BuildDatatsetTool>true</BuildDatatsetTool>
+    <BuildCntkToCaffe>false</BuildCntkToCaffe>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(BuildDir)\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(BuildDir)\Int\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

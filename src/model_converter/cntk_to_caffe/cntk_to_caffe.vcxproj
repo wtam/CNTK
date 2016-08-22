@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\..\..\..\nuget\protoc_x64.2.6.1\build\native\protoc_x64.props" Condition="Exists('..\..\..\..\nuget\protoc_x64.2.6.1\build\native\protoc_x64.props')" />
+  <Import Project="..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.props" Condition="Exists('..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.props')" />
+  <Import Project="..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.props" Condition="Exists('..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.props')" />
+  <Import Project="..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.props" Condition="Exists('..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.props')" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{BB9BC750-2FE9-4EF7-890D-7E9CB5CAF6EF}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>cntk_to_caffe</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="..\..\common_settings.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <NuGetPackageImportStamp>f4619c6f</NuGetPackageImportStamp>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>CPU_ONLY;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(CaffeRepositoryRoot)\include;$(CntkRepositoryRoot);$(CntkRepositoryRoot)\Source\ActionsLib;$(CntkRepositoryRoot)\Source\Common\Include;$(CntkRepositoryRoot)\Source\ComputationNetworkLib;$(CntkRepositoryRoot)\Source\Math;$(CommonDir)\common_standalone</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly;$(MSMPI_LIB64);$(CaffeRepositoryRoot)\Build\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcaffe.lib;Common.lib;ComputationNetworkLib.lib;Math.lib;SequenceTrainingLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy $(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly\Math.dll $(OutDir) /Y /D
+ren $(OutDir)\gflagsd.dll libgflags-debug.dll</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>CPU_ONLY;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(CaffeRepositoryRoot)\include;$(CntkRepositoryRoot);$(CntkRepositoryRoot)\Source\ActionsLib;$(CntkRepositoryRoot)\Source\Common\Include;$(CntkRepositoryRoot)\Source\ComputationNetworkLib;$(CntkRepositoryRoot)\Source\Math;$(CommonDir)\common_standalone</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly;$(MSMPI_LIB64);$(CaffeRepositoryRoot)\Build\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcaffe.lib;Common.lib;ComputationNetworkLib.lib;Math.lib;SequenceTrainingLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy $(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly\Math.dll $(OutDir) /Y /D
+ren $(OutDir)\gflags.dll libgflags.dll</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="cntk_node_wrappers.cpp" />
+    <ClCompile Include="cntk_postfix_iterator.cpp" />
+    <ClCompile Include="cntk_to_caffe_converter.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="node.cpp" />
+    <ClCompile Include="node_factory.cpp" />
+    <ClCompile Include="node_saver.cpp" />
+    <ClCompile Include="node_tag.cpp" />
+    <ClCompile Include="reduce_rules.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cntk_includes.h" />
+    <ClInclude Include="cntk_node_wrappers.h" />
+    <ClInclude Include="cntk_postfix_iterator.h" />
+    <ClInclude Include="cntk_to_caffe_converter.h" />
+    <ClInclude Include="device_info.h" />
+    <ClInclude Include="node.h" />
+    <ClInclude Include="nodes_processor.h" />
+    <ClInclude Include="node_attributes.h" />
+    <ClInclude Include="node_factory.h" />
+    <ClInclude Include="node_saver.h" />
+    <ClInclude Include="node_tag.h" />
+    <ClInclude Include="reduce_rules.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+    <None Include="test.cmd" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\common\common_standalone\common_standalone.vcxproj">
+      <Project>{6fb55f21-657e-498d-8968-31f57d8c5425}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.targets" Condition="Exists('..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.targets')" />
+    <Import Project="..\..\..\..\nuget\boost_chrono-vc120.1.59.0.0\build\native\boost_chrono-vc120.targets" Condition="Exists('..\..\..\..\nuget\boost_chrono-vc120.1.59.0.0\build\native\boost_chrono-vc120.targets')" />
+    <Import Project="..\..\..\..\nuget\boost_date_time-vc120.1.59.0.0\build\native\boost_date_time-vc120.targets" Condition="Exists('..\..\..\..\nuget\boost_date_time-vc120.1.59.0.0\build\native\boost_date_time-vc120.targets')" />
+    <Import Project="..\..\..\..\nuget\boost_filesystem-vc120.1.59.0.0\build\native\boost_filesystem-vc120.targets" Condition="Exists('..\..\..\..\nuget\boost_filesystem-vc120.1.59.0.0\build\native\boost_filesystem-vc120.targets')" />
+    <Import Project="..\..\..\..\nuget\boost_system-vc120.1.59.0.0\build\native\boost_system-vc120.targets" Condition="Exists('..\..\..\..\nuget\boost_system-vc120.1.59.0.0\build\native\boost_system-vc120.targets')" />
+    <Import Project="..\..\..\..\nuget\boost.1.59.0.0\build\native\boost.targets" Condition="Exists('..\..\..\..\nuget\boost.1.59.0.0\build\native\boost.targets')" />
+    <Import Project="..\..\..\..\nuget\boost_thread-vc120.1.59.0.0\build\native\boost_thread-vc120.targets" Condition="Exists('..\..\..\..\nuget\boost_thread-vc120.1.59.0.0\build\native\boost_thread-vc120.targets')" />
+    <Import Project="..\..\..\..\nuget\boost_python2.7-vc120.1.59.0.0\build\native\boost_python-vc120.targets" Condition="Exists('..\..\..\..\nuget\boost_python2.7-vc120.1.59.0.0\build\native\boost_python-vc120.targets')" />
+    <Import Project="..\..\..\..\nuget\protobuf-v120.2.6.1\build\native\protobuf-v120.targets" Condition="Exists('..\..\..\..\nuget\protobuf-v120.2.6.1\build\native\protobuf-v120.targets')" />
+    <Import Project="..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.targets" Condition="Exists('..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.targets')" />
+    <Import Project="..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.targets" Condition="Exists('..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.props'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\OpenCV.2.4.10\build\native\OpenCV.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost_chrono-vc120.1.59.0.0\build\native\boost_chrono-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost_chrono-vc120.1.59.0.0\build\native\boost_chrono-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost_date_time-vc120.1.59.0.0\build\native\boost_date_time-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost_date_time-vc120.1.59.0.0\build\native\boost_date_time-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost_filesystem-vc120.1.59.0.0\build\native\boost_filesystem-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost_filesystem-vc120.1.59.0.0\build\native\boost_filesystem-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost_system-vc120.1.59.0.0\build\native\boost_system-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost_system-vc120.1.59.0.0\build\native\boost_system-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost.1.59.0.0\build\native\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost.1.59.0.0\build\native\boost.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost_thread-vc120.1.59.0.0\build\native\boost_thread-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost_thread-vc120.1.59.0.0\build\native\boost_thread-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\boost_python2.7-vc120.1.59.0.0\build\native\boost_python-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\boost_python2.7-vc120.1.59.0.0\build\native\boost_python-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\protobuf-v120.2.6.1\build\native\protobuf-v120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\protobuf-v120.2.6.1\build\native\protobuf-v120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.props'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\glog.0.3.3.0\build\native\glog.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.props'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\gflags.2.1.2.1\build\native\gflags.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\nuget\protoc_x64.2.6.1\build\native\protoc_x64.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\nuget\protoc_x64.2.6.1\build\native\protoc_x64.props'))" />
+  </Target>
+  <PropertyGroup>
+    <OriginalBuildDependsOn>$(BuildDependsOn)</OriginalBuildDependsOn>
+    <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
+  </PropertyGroup>
+  <Target Name="OriginalBuild" Condition="'$(BuildCntkToCaffe)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
+  <Target Name="SkipBuild" Condition="'$(BuildCntkToCaffe)'!='true'" >
+    <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
+  </Target>
+</Project>

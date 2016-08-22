@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6D941FB7-20C7-45E5-8028-743D3141A219}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>dataset_tool</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="..\..\common_settings.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.props" Condition="Exists('$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.props')" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <NuGetPackageImportStamp>0c91d16f</NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(DsLibDir);$(CommonDir)\cmd_line_parser</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(DsLibDir);$(CommonDir)\cmd_line_parser</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="check_decoding_scenario.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="make_dataset_scenario.cpp" />
+    <ClCompile Include="test_load_dataset_scenario.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\common\platform\platform.vcxproj">
+      <Project>{4d5fbc80-637b-4d4b-ba69-d07c7771d818}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\common\protobuf_wrapper\protobuf_wrapper.vcxproj">
+      <Project>{13B0BC7F-F99A-421B-98E9-3C7370561F5A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\common\common_standalone\common_standalone.vcxproj">
+      <Project>{6FB55F21-657E-498D-8968-31F57D8C5425}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\common\cmd_line_parser\cmd_line_parser.vcxproj">
+      <Project>{A06DD5CB-E2A9-4927-BD8A-9CD5E9C666D8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dataset_lib\dataset_lib.vcxproj">
+      <Project>{3e9df199-f055-48d5-a40d-5fe07ff4d85d}</Project>
+      <Private>false</Private>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="check_decoding_scenario.hpp" />
+    <ClInclude Include="make_dataset_scenario.hpp" />
+    <ClInclude Include="test_load_dataset_scenario.hpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(NugetDir)\boost_program_options-vc120.1.59.0.0\build\native\boost_program_options-vc120.targets" Condition="Exists('$(NugetDir)\boost_program_options-vc120.1.59.0.0\build\native\boost_program_options-vc120.targets')" />
+    <Import Project="$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.targets" Condition="Exists('$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.targets')" />
+    <Import Project="$(NugetDir)\protobuf-v120.2.6.1\build\native\protobuf-v120.targets" Condition="Exists('$(NugetDir)\protobuf-v120.2.6.1\build\native\protobuf-v120.targets')" />
+  </ImportGroup>
+  <PropertyGroup>
+    <OriginalBuildDependsOn>$(BuildDependsOn)</OriginalBuildDependsOn>
+    <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
+  </PropertyGroup>
+  <Target Name="OriginalBuild" Condition="'$(BuildDatatsetTool)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
+  <Target Name="SkipBuild" Condition="'$(BuildDatatsetTool)'!='true'">
+    <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
+  </Target>
+</Project>

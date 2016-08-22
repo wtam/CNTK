@@ -1,0 +1,15 @@
+#Visual Studio files
+*.user
+*.suo
+*.sdf
+*.opensdf
+
+#Config files
+*.props
+
+#Generated files
+*.pb.cc
+*.pb.h
+
+#Build directory
+build

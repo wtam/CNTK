@@ -1,0 +1,151 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3E9DF199-F055-48D5-A40D-5FE07FF4D85D}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>dataset_lib</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="..\..\common_settings.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.props" Condition="Exists('$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.props')" />
+    <Import Project="$(NugetDir)\protoc_x64.2.6.1\build\native\protoc_x64.props" Condition="Exists('$(NugetDir)\protoc_x64.2.6.1\build\native\protoc_x64.props')" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <NuGetPackageImportStamp>0c91d16f</NuGetPackageImportStamp>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CommonDir)\platform;$(CommonDir)\protobuf_wrapper</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <PreBuildEvent>
+      <Command>"proto_compile.cmd" "$(DsLibDir)" "$(ProtocDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CommonDir)\platform;$(CommonDir)\protobuf_wrapper</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <PreBuildEvent>
+      <Command>"proto_compile.cmd" "$(DsLibDir)" "$(ProtocDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="base_transformer.hpp" />
+    <ClInclude Include="base_transformer_save.hpp" />
+    <ClInclude Include="channelwise_scale_shift_transformer.hpp" />
+    <ClInclude Include="crop_transformer.hpp" />
+    <ClInclude Include="dataset.hpp" />
+    <ClInclude Include="dataset_check.hpp" />
+    <ClInclude Include="dataset_events_sink.hpp" />
+    <ClInclude Include="dataset_io.hpp" />
+    <ClInclude Include="decompressor.hpp" />
+    <ClInclude Include="ds_load_params.hpp" />
+    <ClInclude Include="ds_load_params.pb.h" />
+    <ClInclude Include="ds_save_params.hpp" />
+    <ClInclude Include="ds_save_params.pb.h" />
+    <ClInclude Include="fixresize_transformer_save.hpp" />
+    <ClInclude Include="horizontal_flip_transformer.hpp" />
+    <ClInclude Include="mean_transformer.hpp" />
+    <ClInclude Include="minresize_transformer.hpp" />
+    <ClInclude Include="minresize_transformer_save.hpp" />
+    <ClInclude Include="pixelmap_transformer_save.hpp" />
+    <ClInclude Include="prefetcher.hpp" />
+    <ClInclude Include="rotation_transformer.hpp" />
+    <ClInclude Include="tensor.hpp" />
+    <ClInclude Include="transformer.hpp" />
+    <ClInclude Include="transformer_save.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="channelwise_scale_shift_transformer.cpp" />
+    <ClCompile Include="crop_transformer.cpp" />
+    <ClCompile Include="decompressor.cpp" />
+    <ClCompile Include="dataset_loader.cpp" />
+    <ClCompile Include="dataset_saver.cpp" />
+    <ClCompile Include="ds_load_params.pb.cc">
+      <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="ds_save_params.pb.cc">
+      <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="fixresize_transformer_save.cpp" />
+    <ClCompile Include="horizontal_flip_transformer.cpp" />
+    <ClCompile Include="mean_transformer.cpp" />
+    <ClCompile Include="minresize_transformer.cpp" />
+    <ClCompile Include="minresize_transformer_save.cpp" />
+    <ClCompile Include="pixelmap_transformer_save.cpp" />
+    <ClCompile Include="prefetcher.cpp" />
+    <ClCompile Include="rotation_transformer.cpp" />
+    <ClCompile Include="tensor.cpp" />
+    <ClCompile Include="transformer_factory.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="proto\ds_load_params.proto" />
+    <None Include="proto\ds_save_params.proto" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.targets" Condition="Exists('$(NugetDir)\OpenCV.2.4.10\build\native\OpenCV.targets')" />
+    <Import Project="$(NugetDir)\protobuf-v120.2.6.1\build\native\protobuf-v120.targets" Condition="Exists('$(NugetDir)\protobuf-v120.2.6.1\build\native\protobuf-v120.targets')" />
+  </ImportGroup>
+  <PropertyGroup>
+    <OriginalBuildDependsOn>$(BuildDependsOn)</OriginalBuildDependsOn>
+    <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
+  </PropertyGroup>
+  <Target Name="OriginalBuild" Condition="'$(BuildDatatsetLib)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
+  <Target Name="SkipBuild" Condition="'$(BuildDatatsetLib)'!='true'">
+    <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
+  </Target>
+</Project>
