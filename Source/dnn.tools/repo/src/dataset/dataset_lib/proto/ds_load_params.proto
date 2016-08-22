@@ -1,0 +1,74 @@
+// Parameters for min resize transform.
+message MinResizeTransformParameters
+{
+  required int32 min_size = 1;
+}
+
+// Parameters for crop transform.
+message CropTransformParameters
+{
+  required int32 crop_size = 1;
+  optional bool central_crop = 2 [default = false];
+}
+
+// Parameters for mean transform.
+message MeanTransformParameters
+{
+  // Path to the mean file.
+  required string mean_file_path= 1;
+  // Blob from the mean file will be resized to resize_to x resize_to.
+  required int32 resize_to = 2;
+}
+
+message ChannelwiseScaleShiftParameters
+{
+  // The number of scales and shifts must be equal to the number
+  // of channels.
+  repeated float scale = 1;
+  repeated float shift = 2;
+}
+
+message TransformTarget
+{
+  required string blob_name = 1;
+  required string channelset_name = 2;
+}
+
+message HorizontalFlipParameters
+{
+  repeated bool flip_channel_values = 1;
+}
+
+// Specifies one transform.
+message TransformParameter {
+  // Describes type of the transform.
+  required string type = 1;
+  // Defines target channelsets for the transform.
+  repeated TransformTarget target = 2;
+  
+  // Defines parameters for the specific type of transform (only one will be
+  // used based on type).
+  optional MinResizeTransformParameters min_resize_param = 100;
+  optional CropTransformParameters crop_param = 101;
+  optional MeanTransformParameters mean_param = 102;
+  optional ChannelwiseScaleShiftParameters channelwise_scale_shift_param = 103;
+  optional HorizontalFlipParameters horizontal_flip_param = 104;
+}
+
+// Specifies dataset loading options.
+message DsLoadParameters{
+  // Path to the datset.
+  required string source = 1;
+  // Number of threads to be used for decompression and transforms.
+  required int32 threads_count = 2;
+  // Maximal number of cached examples.
+  required int32 cache_size = 3;
+  // Dataset file chunk to be loaded from the disk in one read.
+  required int64 disk_prefetch_size = 4;
+  // Describes transforms to be applied to example.
+  repeated TransformParameter transform_parameter = 5;
+  // Whether to shuffle chunks.
+  optional bool shuffle_chunks = 6 [default = true];
+  // Whether to shuffle examples within a chunk.
+  optional bool shuffle_examples = 7 [default = true];
+}

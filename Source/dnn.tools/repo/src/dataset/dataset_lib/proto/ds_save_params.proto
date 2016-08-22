@@ -1,0 +1,66 @@
+enum OutInterpolation
+{
+  NN = 0;
+  LINEAR = 1;
+}
+
+// Parameters for resizing min resize.
+message MinResizeParameters
+{
+  required int32 size = 1;
+  required OutInterpolation out_interpolation = 2;
+}
+
+// Parameters for fixed resize.
+message FixedResizeParameters
+{
+  required int32 height = 1;
+  required int32 width = 2;
+  required OutInterpolation out_interpolation = 3;
+}
+
+message PixelMappingParameters
+{
+  required string mapping_file = 1;
+}
+
+message TransformParameterSave
+{
+  required string type = 1;
+  optional MinResizeParameters min_resize_param = 2;
+  optional FixedResizeParameters fixed_resize_param = 3;
+  optional PixelMappingParameters pixel_map_param = 4;
+}
+
+// Parameters for one channelset saving.
+message ChannelsetSaveParameters
+{
+  // Name of the channelset.
+  required string name = 1;
+  // Number of channelset input channels.
+  required int32 in_channels = 2;
+  // Type of channelset output compression.
+  required string out_compression = 3;
+  // Array of save transforms.
+  repeated TransformParameterSave transform_parameter = 4;
+}
+
+// Parameters for one blob saving.
+message BlobSaveParameters
+{
+  // Defines name of the blob.
+  required string name = 1;
+  // Defines parameters for saving contained channelsets.
+  repeated ChannelsetSaveParameters channelset_save_params = 2;
+}
+
+// Describes dataset saving options.
+message DsSaveParameters
+{
+  // Array of parameters for saving each blob.
+  repeated BlobSaveParameters blob_save_params = 1;
+  // Path to the listfile describing example channelsets.
+  required string list_file_path = 2;
+  // Whether to shuffle examples after they are read from the listfile.
+  optional bool shuffle = 3 [default = true];
+}
