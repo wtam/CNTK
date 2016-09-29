@@ -9,8 +9,9 @@
 
 FixedResizeTransformerSave::FixedResizeTransformerSave(const TransformParameterSave& param)
 {
-  CHECK(param.type() == FixedResizeTransformerSave::GetTypeString());
-  CHECK(param.has_fixed_resize_param());
+  CHECK(param.type() == FixedResizeTransformerSave::GetTypeString(),
+    "Invalid param type in FixedResizeTransformerSave: %s", param.type().c_str());
+  CHECK(param.has_fixed_resize_param(), "Missing fixed resize param.");
   height_ = param.fixed_resize_param().height();
   width_ = param.fixed_resize_param().width();
   if (param.fixed_resize_param().out_interpolation() == OutInterpolation::NN)

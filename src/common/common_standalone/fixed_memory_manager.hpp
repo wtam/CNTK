@@ -16,7 +16,7 @@ public:
   FixedMemoryManager(size_t memory_size, size_t elem_count, TContext context, bool no_new_alloc) :
     memory_size_(memory_size), context_(context), elem_count_(elem_count), no_new_alloc_(no_new_alloc)
   {
-    CHECK(elem_count_ > 0);
+    CHECK(elem_count_ > 0, "Non-positive elem count in FixedMemoryManager %d.", elem_count_);
     // Create initial memory.
     AllocNewBuffer();
     // Our first free object is first object in the first buffer.
@@ -47,7 +47,7 @@ public:
     alloc_lock_.lock();
 
     // We always must have free object here since we preallocate at the end if necessary.
-    CHECK(next_free_ != nullptr);
+    CHECK(next_free_ != nullptr, "No more free elements in FixedMemoryManager.");
 
     // Reallocate if necessary (and configured to do so).
     if (!no_new_alloc_ && next_free_->next_ == nullptr)

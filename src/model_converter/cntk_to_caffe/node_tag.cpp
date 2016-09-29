@@ -5,6 +5,7 @@
 #include "InputAndParamNodes.h"
 #include "LinearAlgebraNodes.h"
 #include "NonlinearityNodes.h"
+#include "ReshapingNodes.h"
 #include "TrainingNodes.h"
 #pragma warning( default: 4996 )
 
@@ -26,6 +27,12 @@ NodeTag GetTag(const cntk::ComputationNodeBase& node)
     {
         return NodeTag::Convolution;
     }
+#ifdef CONVERT_CROP_NODE
+    else if (dynamic_cast<const cntk::CropNode<float>*>(&node) != nullptr)
+    {
+        return NodeTag::Crop;
+    }
+#endif
     else if (dynamic_cast<const cntk::ElementTimesNode<float>*>(&node) != nullptr)
     {
         return NodeTag::ElementTimes;
@@ -78,6 +85,10 @@ std::string ToString(const NodeTag& tag)
         return "BatchNorm";
     case NodeTag::Convolution:
         return "Convolution";
+#ifdef CONVERT_CROP_NODE
+    case NodeTag::Crop:
+        return "Crop";
+#endif
     case NodeTag::ElementTimes:
         return "ElementTimes";
     case NodeTag::Eltwise:

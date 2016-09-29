@@ -26,7 +26,7 @@ protected:
   virtual ~BackgroundWorkersPool()
   {
     // We need to be aborted before destructor.
-    CHECK(threads_.size() == 0);
+    CHECK(threads_.size() == 0, "Must have 0 threads in BackgroundWorkersPool destructor, %d left.", threads_.size());
   }
 
   // Stops all processing in background threads and clears all internal data. Object should not be used after this call.

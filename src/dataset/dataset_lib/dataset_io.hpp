@@ -31,6 +31,8 @@ public:
 
   virtual const char* GetBlobName(int index) = 0;
 
+  virtual int GetExamplesCount() = 0;
+
   virtual void GetExample(IExample<Dtype>* out_example) = 0;
 
   virtual const char* GetConfiguration() = 0;

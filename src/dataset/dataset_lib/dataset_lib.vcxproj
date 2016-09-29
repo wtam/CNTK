@@ -90,6 +90,7 @@
     <ClInclude Include="dataset_events_sink.hpp" />
     <ClInclude Include="dataset_io.hpp" />
     <ClInclude Include="decompressor.hpp" />
+	<ClInclude Include="deserializer.hpp" />
     <ClInclude Include="ds_load_params.hpp" />
     <ClInclude Include="ds_load_params.pb.h" />
     <ClInclude Include="ds_save_params.hpp" />
@@ -100,7 +101,6 @@
     <ClInclude Include="minresize_transformer.hpp" />
     <ClInclude Include="minresize_transformer_save.hpp" />
     <ClInclude Include="pixelmap_transformer_save.hpp" />
-    <ClInclude Include="prefetcher.hpp" />
     <ClInclude Include="rotation_transformer.hpp" />
     <ClInclude Include="tensor.hpp" />
     <ClInclude Include="transformer.hpp" />
@@ -112,6 +112,7 @@
     <ClCompile Include="decompressor.cpp" />
     <ClCompile Include="dataset_loader.cpp" />
     <ClCompile Include="dataset_saver.cpp" />
+	<ClCompile Include="deserializer.cpp" />
     <ClCompile Include="ds_load_params.pb.cc">
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
@@ -126,7 +127,6 @@
     <ClCompile Include="minresize_transformer.cpp" />
     <ClCompile Include="minresize_transformer_save.cpp" />
     <ClCompile Include="pixelmap_transformer_save.cpp" />
-    <ClCompile Include="prefetcher.cpp" />
     <ClCompile Include="rotation_transformer.cpp" />
     <ClCompile Include="tensor.cpp" />
     <ClCompile Include="transformer_factory.cpp" />

@@ -21,9 +21,10 @@ using google::protobuf::io::FileInputStream;
 
 void ReadProtoFromTextFile(const char* filename, Message* proto) {
   int fd = open(filename, O_RDONLY);
-  CHECK(fd != -1, std::string("File not found: ") + filename);
+  CHECK(fd != -1, "Proto file not found: %s", filename);
   std::unique_ptr<FileInputStream> input(new FileInputStream(fd));
-  CHECK(google::protobuf::TextFormat::Parse(input.get(), proto));
+  CHECK(google::protobuf::TextFormat::Parse(input.get(), proto),
+    "Parsing proto file %s failed.", filename);
   close(fd);
 }
 

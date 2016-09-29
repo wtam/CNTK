@@ -16,7 +16,7 @@ using namespace std;
 HorizontalFlipTransformer::HorizontalFlipTransformer(const TransformParameter& param)
     : BaseTransformer(param), gen_(mt19937(random_device()()))
 {
-  CHECK(param.type() == GetType());
+  CHECK(param.type() == GetType(), "Invalid type in horizontal flip transformer: %s", param.type().c_str());
 
   flip_channel_values_.assign(param.target_size(), false);
   int flip_channel_values_count = 0;
@@ -41,15 +41,20 @@ void HorizontalFlipTransformer::GetTransformedSizeImpl(int width, int height, in
   newHeight = height;
 }
 
+int HorizontalFlipTransformer::GetRequiredWorkspaceMemoryImpl(int width, int height, int channels)
+{
+  return channels * height * width;
+}
+
 // Add c-th channel of matrix A multiplied by scalar a to matrix B.
 void Accumulate(const cv::Mat& A, int c, double a, cv::Mat& B)
 {
-  CHECK(A.rows == B.rows);
-  CHECK(A.cols == B.cols);
-  CHECK(c < A.channels());
-  CHECK(B.channels() == 1);
-  CHECK(A.depth() == CV_32F);
-  CHECK(B.depth() == CV_32F);
+  CHECK(A.rows == B.rows, "Rows mismatch in Accumulate %d != %d", A.rows, B.rows);
+  CHECK(A.cols == B.cols, "Cols mismatch in Accumulate %d != %d", A.cols, B.cols);
+  CHECK(c < A.channels(), "Channel index %d out of range (needs to be less than %d)", c, A.channels());
+  CHECK(B.channels() == 1, "B has %d channels (1 expected) in Accumulate.", B.channels());
+  CHECK(A.depth() == CV_32F, "Invalid A depth in Accumulate: %d", A.depth());
+  CHECK(B.depth() == CV_32F, "Invalid B depth in Accumulate: %d", B.depth());
   const float* src_ptr = A.ptr<float>(0) + c;
   float* dst_ptr = B.ptr<float>(0);
   for (int i = 0; i < A.rows * A.cols; i++, src_ptr += A.channels(), dst_ptr++)
@@ -61,12 +66,12 @@ void Accumulate(const cv::Mat& A, int c, double a, cv::Mat& B)
 // Add matrix A multiplied by scalar a to c-th channel of matrix B.
 void Accumulate(const cv::Mat& A, double a, cv::Mat& B, int c)
 {
-  CHECK(A.rows == B.rows);
-  CHECK(A.cols == B.cols);
-  CHECK(A.channels() == 1);
-  CHECK(c < B.channels());
-  CHECK(A.depth() == CV_32F);
-  CHECK(B.depth() == CV_32F);
+  CHECK(A.rows == B.rows, "Rows mismatch in Accumulate %d != %d");
+  CHECK(A.cols == B.cols, "Cols mismatch in Accumulate %d != %d");
+  CHECK(A.channels() == 1, "A is expected to have 1 channel in Accumulate while ist has %d", A.channels());
+  CHECK(c < B.channels(), "Channel index %d out of range (needs to be less than %d)", c, B.channels());
+  CHECK(A.depth() == CV_32F, "Invalid A depth in Accumulate: %d", A.depth());
+  CHECK(B.depth() == CV_32F, "Invalid B depth in Accumulate: %d", B.depth());
   const float* src_ptr = A.ptr<float>(0);
   float* dst_ptr = B.ptr<float>(0) + c;
   for (int i = 0; i < A.rows * A.cols; i++, src_ptr++, dst_ptr += B.channels())
@@ -106,7 +111,8 @@ void HorizontalFlipTransformer::TransformImpl(vector<TransformableChannelset*>& 
   int total_channel_count = 0;
   for_each(channelsets.cbegin(), channelsets.cend(),
     [&total_channel_count](const TransformableChannelset* cs) { total_channel_count += cs->Channels(); });
-  CHECK(flip_channel_values_.size() == total_channel_count);
+  CHECK(static_cast<int>(flip_channel_values_.size()) == total_channel_count,
+    "Total channels count is %d while flip channel values size is %u", total_channel_count, flip_channel_values_.size());
 
   // The remaining code in this function computes the following:
   // 1) Select a random unit (row-)vector a = [a_1, ..., a_d], where d is the number
@@ -141,7 +147,7 @@ void HorizontalFlipTransformer::TransformImpl(vector<TransformableChannelset*>& 
         {
           // Initialize sum, use this channelset's workspace memory.
           sum = cv::Mat(height, width, CV_32FC1, channelset->GetWorkspaceMemory());
-          CHECK(sum.isContinuous());
+          CHECK(sum.isContinuous(), "sum is not continuous.");
           sum = cv::Scalar(0);
         }
 

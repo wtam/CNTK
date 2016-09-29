@@ -8,26 +8,12 @@
 
 class TransformParameter;
 
-struct TransformerTarget
-{
-  TransformerTarget(const std::string& blob_name, const std::string& channelset_name)
-    : blob_name_(blob_name), channelset_name_(channelset_name) {}
-
-  bool operator==(const TransformerTarget& other) const
-  {
-    return (blob_name_ == other.blob_name_) && (channelset_name_ == other.channelset_name_);
-  }
-
-  std::string blob_name_;
-  std::string channelset_name_;
-};
-
 // Input to transformers logic. Contains image (final memory) and some workspace memory along with image dimensions.
 // Transformer needs to transform input image and store result in final memory.
 struct TransformableChannelset
 {
-  TransformableChannelset(const char* blob_name, const char* channelset_name, float* final_mem, float* work_mem)
-    : final_memory_(final_mem), workspace_memory_(work_mem), target_(blob_name, channelset_name)
+  TransformableChannelset(const char* channelset_name, float* final_mem, float* work_mem)
+    : final_memory_(final_mem), workspace_memory_(work_mem), target_(channelset_name)
   {
   }
 
@@ -49,7 +35,7 @@ struct TransformableChannelset
 
   void Swap() { std::swap(final_memory_, workspace_memory_); }
 
-  const TransformerTarget* GetTarget() const { return &target_; }
+  const std::string* GetTarget() const { return &target_; }
 
 private:
   float* final_memory_;
@@ -57,7 +43,17 @@ private:
   int height_;
   int width_;
   int channels_;
-  TransformerTarget target_;
+  std::string target_;
+};
+
+// Defines interface for iterating over collection of transformable channels.
+class ITransformableChannelsetIterator
+{
+public:
+  // Returns number of transformable channelsets.
+  virtual int GetTransformableChannelsetsCount() = 0;
+  // Returns transformable channelset at the given index.
+  virtual TransformableChannelset* GetTransformableChannelset(int index) = 0;
 };
 
 // Transformer interface.
@@ -67,10 +63,15 @@ public:
   virtual ~ITransformer() {}
 
   // Must return transformed dimensions given the current dimensions.
-  virtual void GetTransformedSize(const std::string& blob_name, const std::string& channelset_name, int width, int height, int& newWidth, int& newHeight) = 0;
+  virtual void GetTransformedSize(const std::string& channelset_name, int width,
+                                  int height, int& newWidth, int& newHeight) = 0;
+
+  // Must return requred memory for given input size.
+  virtual int GetRequiredWorkspaceMemory(const std::string& channelset_name, int width,
+                                         int height, int channels) = 0;
 
   // Transforms the given channelsets.
-  virtual void Transform(const std::vector<TransformableChannelset*>& channelsets) = 0;
+  virtual void Transform(ITransformableChannelsetIterator& channelsets) = 0;
 };
 
 std::unique_ptr<ITransformer> CreateTransformer(const TransformParameter& param);

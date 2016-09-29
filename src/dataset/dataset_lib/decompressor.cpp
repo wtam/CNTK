@@ -21,7 +21,9 @@ void DecompressCompressed(const char* in, int in_size, int out_channels, int out
 // Unpacks raw (uncompressed) image.
 void DecompressRaw(const char* in, int in_size, int out_channels, int out_height, int out_width, float* out, float* /*work*/)
 {
-  CHECK(in_size == out_height * out_width * out_channels);
+  CHECK(in_size == out_height * out_width * out_channels,
+    "In size differs from out dimensions in raw decompression. InSize=%d Height=%d Width=%d Channels=%d",
+    in_size, out_height, out_width, out_channels);
   cv::Mat in_image(out_height, out_width, CV_8UC(out_channels), (void*)in);
   cv::Mat out_image(out_height, out_width, CV_32FC(out_channels), out);
   in_image.convertTo(out_image, CV_32FC3);
@@ -30,10 +32,10 @@ void DecompressRaw(const char* in, int in_size, int out_channels, int out_height
 // Unpacks values based input.
 void DecompressValue(const char* in, int in_size, int out_channels, int out_height, int out_width, float* out, float* /*work*/)
 {
-  CHECK(in_size == sizeof(int));
-  CHECK(out_channels == 1);
-  CHECK(out_height == 1);
-  CHECK(out_width == 1);
+  CHECK(in_size == sizeof(int), "Input size %d for value decompress is not equal to sizeof(int).", in_size);
+  CHECK(out_channels == 1, "Out channels %d for value decompress is not equal to 1.", out_channels);
+  CHECK(out_height == 1, "Out height %d for value decompress is not equal to 1.", out_height);
+  CHECK(out_width == 1, "Out width %d for value decompress is not equal to 1.", out_width);
   // Input is int convert it to float.
   out[0] = static_cast<float>(reinterpret_cast<const int*>(in)[0]);
 }

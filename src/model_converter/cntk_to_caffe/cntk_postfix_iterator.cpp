@@ -27,7 +27,7 @@ CntkPostfixIterator::CntkPostfixIterator(const cntk::ComputationNetworkPtr& net)
 {
     const auto output_nodes = net->OutputNodes();
     // Currently, networks with multiple outputs are not supported.
-    CHECK(output_nodes.size() == 1);
+    CHECK(output_nodes.size() == 1, "CntkPostfixIterator expects 1 output node (%d given)", output_nodes.size());
     auto state = make_unique<CntkPostfixIteratorState>(output_nodes.front());
     state_.push(move(state));
 }
@@ -71,7 +71,7 @@ const cntk::ComputationNodeBasePtr CntkPostfixIterator::GetNext()
         state_.push(move(child));
     }
 
-    CHECK(!state_.empty());
+    CHECK(!state_.empty(), "Empty state in CntkPostfixIterator::GetNext");
     cntk::ComputationNodeBasePtr result = state_.top()->node;
     state_.pop();
     visited_nodes_.insert(GetNodeId(result));

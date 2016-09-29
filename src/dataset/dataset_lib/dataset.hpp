@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstring>
 
-const int c_ids_file_version = 2;
+const int c_ids_file_version = 3;
 
 enum class Compression : int {
   Unknown = -1, // Used internally, should never be serialized.
@@ -38,26 +38,16 @@ struct ChannelSet
   char name[c_max_name_len];
 };
 
-// Contains information shared across all blobs.
-struct Blob
-{
-  Blob() : channelsets_count(-1) { memset(name, 0, c_max_name_len); }
-
-  // Number of channelsets per blob.
-  int channelsets_count;
-  // Name of the blob.
-  char name[c_max_name_len];
-};
-
 // Stores information about serialized header.
 struct DsHeader
 {
-  DsHeader() : ids_file_version_(c_ids_file_version), blobs_count_(0) {}
+  DsHeader() : ids_file_version_(c_ids_file_version), channelsets_count(0) {}
 
   // Version of ids file, ensures file and reader version match.
+  // !!! Important: As new versions are produced this must remain first field in DsHeader to enable version check.
   int ids_file_version_;
-  // Number of blobs per example.
-  int blobs_count_;
+  // Number of channelsets per example in dataset file.
+  int channelsets_count;
   // File offset where cached channelset instances (without memory) start.
   int64_t cached_channelset_instances_start_;
 };

@@ -18,7 +18,7 @@ bool ReduceRule::CanBeApplied(const list<shared_ptr<Node>>& nodes) const
     auto node = nodes.cbegin();
     for (size_t i = 0; i < rule_.size(); ++i, ++node)
     {
-        CHECK((*node) != nullptr);
+        CHECK((*node) != nullptr, "Node is nullptr in ReduceRule::CanBeApplied.");
         if (!rule_[i].HasPassedFilter((*node)->GetTags()))
         {
             can_be_applied = false;

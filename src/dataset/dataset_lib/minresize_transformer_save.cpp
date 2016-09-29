@@ -11,8 +11,9 @@
 
 MinResizeTransformerSave::MinResizeTransformerSave(const TransformParameterSave& param)
 {
-  CHECK(param.type() == MinResizeTransformerSave::GetTypeString());
-  CHECK(param.has_min_resize_param());
+  CHECK(param.type() == MinResizeTransformerSave::GetTypeString(),
+    "Invalid type in MinResizeTransformerSave: %s", param.type().c_str());
+  CHECK(param.has_min_resize_param(), "Min resize params missing.");
   min_resize_ = param.min_resize_param().size();
   if (param.min_resize_param().out_interpolation() == OutInterpolation::NN)
   {

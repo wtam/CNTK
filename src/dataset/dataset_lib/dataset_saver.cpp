@@ -14,6 +14,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -109,7 +110,7 @@ private:
     }
     else
     {
-      CHECK(false);
+      CHECK(false, "Invalid compression string %s", str.c_str());
       return Compression::Unknown;
     }
   }
@@ -133,44 +134,6 @@ private:
   vector<unique_ptr<ITransformerSave>> save_transformers_;  // Transformers to be applied before saving.
 };
 
-// Structure that stores config file header blob description.
-struct HeaderBlobDesc
-{
-public:
-  HeaderBlobDesc() = default;
-  HeaderBlobDesc(HeaderBlobDesc&& other)
-  {
-    name_ = move(other.name_);
-    channelset_descriptors_ = move(other.channelset_descriptors_);
-  }
-
-  HeaderBlobDesc(const HeaderBlobDesc& other) = delete;
-
-  HeaderBlobDesc& operator=(const HeaderBlobDesc& other) = delete;
-
-  const string* GetName() const
-  {
-    return &name_;
-  }
-
-  int GetChannelsetDescsCount() const
-  {
-    return static_cast<int>(channelset_descriptors_.size());
-  }
-
-  const HeaderChannelSetDesc* GetChannelsetDesc(int ic) const
-  {
-    return &channelset_descriptors_[ic];
-  }
-
-private:
-  string name_;
-  vector<HeaderChannelSetDesc> channelset_descriptors_;
-
-  // HeaderDesc performs parsing.
-  friend struct HeaderDesc;
-};
-
 // Structure that stores config file header.
 struct HeaderDesc
 {
@@ -182,7 +145,7 @@ public:
 
   HeaderDesc(HeaderDesc&& other)
   {
-    blob_descriptors_ = move(other.blob_descriptors_);
+    channelset_descriptors_ = move(other.channelset_descriptors_);
     list_file_path_ = move(other.list_file_path_);
     shuffle_ = other.shuffle_;
   }
@@ -195,22 +158,23 @@ public:
     HeaderDesc header_desc;
     header_desc.list_file_path_ = save_parameters.list_file_path();
     header_desc.shuffle_ = save_parameters.shuffle();
-    header_desc.blob_descriptors_.resize(save_parameters.blob_save_params_size());
-    for (int ib = 0; ib < save_parameters.blob_save_params_size(); ib++)
+    header_desc.channelset_descriptors_.resize(save_parameters.channelset_save_params_size());
+    unordered_set<string> channelset_names;
+    for (int ic = 0; ic < save_parameters.channelset_save_params_size(); ic++)
     {
-      const BlobSaveParameters& blob_save_param = save_parameters.blob_save_params(ib);
-      header_desc.blob_descriptors_[ib].name_ = blob_save_param.name();
-      CHECK(header_desc.blob_descriptors_[ib].name_.size() + 1 < c_max_name_len);
-      header_desc.blob_descriptors_[ib].channelset_descriptors_.resize(blob_save_param.channelset_save_params_size());
-      for (int ic = 0; ic < blob_save_param.channelset_save_params_size(); ic++)
-      {
-        const ChannelsetSaveParameters& channelset_save_params = blob_save_param.channelset_save_params(ic);
-        HeaderChannelSetDesc& channelset_desc = header_desc.blob_descriptors_[ib].channelset_descriptors_[ic];
-        channelset_desc.InitFromParams(channelset_save_params);
+      const ChannelsetSaveParameters& channelset_save_params = save_parameters.channelset_save_params(ic);
+      HeaderChannelSetDesc& channelset_desc = header_desc.channelset_descriptors_[ic];
+      channelset_desc.InitFromParams(channelset_save_params);
 
-        CHECK(channelset_desc.GetName()->size() + 1 < c_max_name_len);
-      }
+      const string& channelset_name = *channelset_desc.GetName();
+      // Check that channelset name length is within acceptable limits.
+      CHECK(channelset_name.size() + 1 < c_max_name_len, "Channelset name %s is too long.", channelset_name.c_str());
+      // Check that channelsets have unique name.
+      CHECK(channelset_names.find(channelset_name) == channelset_names.end(),
+        "Duplicate channelset name %s", channelset_name.c_str());
+      channelset_names.insert(channelset_name);
     }
+
     return header_desc;
   }
 
@@ -224,265 +188,113 @@ public:
     return shuffle_;
   }
 
-  int GetBlobDescsCount() const
+  int GetChannelsetDescsCount() const
   {
-    return static_cast<int>(blob_descriptors_.size());
+    return static_cast<int>(channelset_descriptors_.size());
   }
 
-  const HeaderBlobDesc* GetBlobDesc(int ib) const
+  const HeaderChannelSetDesc* GetChannelsetDesc(int ic) const
   {
-    return &blob_descriptors_[ib];
+    return &channelset_descriptors_[ic];
   }
 
-  int GetChannelsetDecodeFlag(int ib, int ic)
+  int GetChannelsetDecodeFlag(int ic)
   {
-    if (blob_descriptors_[ib].channelset_descriptors_[ic].GetChannels() == 1)
+    if (channelset_descriptors_[ic].GetChannels() == 1)
     {
       return CV_LOAD_IMAGE_GRAYSCALE;
     }
-    else if (blob_descriptors_[ib].channelset_descriptors_[ic].GetChannels() == 3)
+    else if (channelset_descriptors_[ic].GetChannels() == 3)
     {
       return CV_LOAD_IMAGE_COLOR;
     }
     else
     {
-      CHECK(false);
+      CHECK(false, "Channelset decoding flag %d (number of channels) is invalid (1 or 3 is accepted).",
+        channelset_descriptors_[ic].GetChannels());
       return 0;
     }
   }
 
-  const vector<unique_ptr<ITransformerSave>>* GetSaveTransformers(int ib, int ic)
+  const vector<unique_ptr<ITransformerSave>>* GetSaveTransformers(int ic)
   {
-      return blob_descriptors_[ib].channelset_descriptors_[ic].GetTransformers();
+      return channelset_descriptors_[ic].GetTransformers();
   }
 
-  const ChannelsetEncodeParams* GetEncodeParams(int ib, int ic)
+  const ChannelsetEncodeParams* GetEncodeParams(int ic)
   {
-    if (blob_descriptors_[ib].channelset_descriptors_[ic].GetCompression() == Compression::Raw)
+    if (channelset_descriptors_[ic].GetCompression() == Compression::Raw)
     {
       return &c_raw_encode_params;
     }
-    else if (blob_descriptors_[ib].channelset_descriptors_[ic].GetCompression() == Compression::Jpg)
+    else if (channelset_descriptors_[ic].GetCompression() == Compression::Jpg)
     {
       return &c_jpg_encode_params;
     }
-    else if (blob_descriptors_[ib].channelset_descriptors_[ic].GetCompression() == Compression::Png)
+    else if (channelset_descriptors_[ic].GetCompression() == Compression::Png)
     {
       return &c_png_encode_params;
     }
     else
     {
-      CHECK(false);
+      CHECK(false, "Encode params requested for non-image compression.");
       return 0;
     }
   }
 
 private:
-  vector<HeaderBlobDesc> blob_descriptors_;
+  vector<HeaderChannelSetDesc> channelset_descriptors_;
   string list_file_path_;
   bool shuffle_;
 };
 
-// Config file descriptor for one blob.
-struct ExampleBlobDesc
+// Performs parsing of examples from config file. Result is returned as vector of examples where each example is vector
+// of channelsets. Channelset is represented as string value which will be interpreted based on output compression
+// (path to file or value).
+static vector<vector<string>> ParseExamples(const HeaderDesc& header_desc)
 {
-public:
-  enum class Type { Unknown, Value, Path };
+  vector<vector<string>> examples;
 
-  ExampleBlobDesc(Type t) : type(t)
-  {
-  }
+  std::ifstream in_file_stream(*header_desc.GetListfilePath());
+  CHECK(in_file_stream.is_open(), "Failed to open list file %s", header_desc.GetListfilePath()->c_str());
 
-  void AddPath(const string& path)
+  string line;
+  in_file_stream >> line;
+  while (!in_file_stream.eof())
   {
-    CHECK(type == ExampleBlobDesc::Type::Path);
-    paths.push_back(path);
-  }
-
-  void AddValue(int value)
-  {
-    CHECK(type == ExampleBlobDesc::Type::Value);
-    CHECK(values.size() == 0);
-    values.push_back(value);
-  }
-
-  int GetChannelSetsCount() const
-  {
-    if (type == ExampleBlobDesc::Type::Path)
+    vector<string> new_example;
+    for (int ic = 0; ic < header_desc.GetChannelsetDescsCount(); ic++)
     {
-      return static_cast<int>(paths.size());
+      // We must have more input lines here.
+      CHECK(!in_file_stream.eof(), "Invalid number of lines (not equal to multiple of channelsets) in list file path %s",
+        header_desc.GetListfilePath()->c_str());
+      new_example.push_back(line);
+      // We stored current line, move to the next line.
+      in_file_stream >> line;
     }
-    else if (type == ExampleBlobDesc::Type::Value)
-    {
-      return 1;
-    }
-    else
-    {
-      CHECK(false);
-      return 0;
-    }
-  }
 
-  const string* GetPath(int i) const
+    examples.push_back(move(new_example));
+  }
+  if (header_desc.GetShuffle())
   {
-    CHECK(type == ExampleBlobDesc::Type::Path);
-    return &paths[i];
+    std::shuffle(examples.begin(), examples.end(), default_random_engine(0));
   }
-
-  int GetValue() const
-  {
-    CHECK(type == ExampleBlobDesc::Type::Value);
-    return values[0];
-  }
-
-  Type GetType() const
-  {
-    return type;
-  }
-
-private:
-  Type type;
-  vector<string> paths;
-  vector<int> values;
-};
-
-// Config file descriptor for one example.
-struct ExampleDesc
-{
-public:
-  ExampleDesc()
-  {
-  }
-
-  ExampleDesc(ExampleDesc&& other)
-  {
-    blob_descs = move(other.blob_descs);
-  }
-
-  ExampleDesc& operator=(ExampleDesc&& other)
-  {
-    blob_descs = move(other.blob_descs);
-
-    return *this;
-  }
-
-  ExampleDesc(const ExampleDesc&) = delete;
-
-  ExampleDesc& operator=(const ExampleDesc&) = delete;
-
-  void StartBlob(ExampleBlobDesc::Type type)
-  {
-    blob_descs.emplace_back(type);
-  }
-
-  void AddPathToCurrentBlob(const string& path)
-  {
-    blob_descs.back().AddPath(path);
-  }
-
-  void AddValueToCurrentBlob(int value)
-  {
-    blob_descs.back().AddValue(value);
-  }
-
-  int GetBlobsDescsCount() const
-  {
-    return static_cast<int>(blob_descs.size());
-  }
-
-  const ExampleBlobDesc* GetBlobDesc(int i) const
-  {
-    return &blob_descs[i];
-  }
-
-private:
-  vector<ExampleBlobDesc> blob_descs;
-};
-
-// Stores all examples from config file and performs parsing.
-struct ExamplesDesc
-{
-public:
-  static ExamplesDesc ParseExamples(const HeaderDesc& header_desc)
-  {
-    ExamplesDesc examples_desc;
-
-    std::ifstream in_file_stream(*header_desc.GetListfilePath());
-    CHECK(in_file_stream.is_open(), "Failed to open " + *header_desc.GetListfilePath());
-
-    string line;
-    in_file_stream >> line;
-    while (!in_file_stream.eof())
-    {
-      ExampleDesc example_desc;
-      for (int ib = 0; ib < header_desc.GetBlobDescsCount(); ib++)
-      {
-        const HeaderBlobDesc* blob_desc = header_desc.GetBlobDesc(ib);
-        if (blob_desc->GetChannelsetDesc(0)->GetCompression() == Compression::Value)
-        {
-          example_desc.StartBlob(ExampleBlobDesc::Type::Value);
-        }
-        else
-        {
-          example_desc.StartBlob(ExampleBlobDesc::Type::Path);
-        }
-
-        for (int ic = 0; ic < blob_desc->GetChannelsetDescsCount(); ic++)
-        {
-          // We must have more input lines here.
-          CHECK(!in_file_stream.eof());
-          const HeaderChannelSetDesc* channelset_desc = blob_desc->GetChannelsetDesc(ic);
-
-          if (channelset_desc->GetCompression() == Compression::Value)
-          {
-            // Convert to int and store.
-            int value = std::atoi(line.c_str());
-            example_desc.AddValueToCurrentBlob(value);
-          }
-          else
-          {
-            example_desc.AddPathToCurrentBlob(line);
-          }
-          // We stored current line, move to the next line.
-          in_file_stream >> line;
-        }
-      }
-      examples_desc.examples_.emplace_back(std::move(example_desc));
-    }
-    if (header_desc.GetShuffle())
-    {
-      std::shuffle(examples_desc.examples_.begin(), examples_desc.examples_.end(), default_random_engine(0));
-    }
-    return examples_desc;
-  }
-
-  ExamplesDesc(ExamplesDesc&& other)
-  {
-    examples_ = move(other.examples_);
-  }
-
-  int GetExampleDescsCount() const
-  {
-    return static_cast<int>(examples_.size());
-  }
-
-  const ExampleDesc* GetExampleDesc(int ie) const
-  {
-    return &examples_[ie];
-  }
-
-private:
-  ExamplesDesc() {}
-
-  vector<ExampleDesc> examples_;
-};
+  return examples;
+}
 
 // Serializes value to output file.
-void ValueSerialize(FILE* out_file, int value, ChannelSet& channelset_desc, ChannelSetInstance& channelset_inst)
+// Parameters:
+//  [in]  value_string      String representing integer value to be serialized.
+//  [out] out_file          File handle.
+//  [out] channelset_desc   Channelset descriptor, function will update number of channels and used compression.
+//  [out] channelset_inst   Channelset instance, function will update dimensions and byte size.
+void ValueSerialize(const string& value_string, FILE* out_file, ChannelSet& channelset_desc, ChannelSetInstance& channelset_inst)
 {
+  // Value is given as string, convert it to integer.
+  int value = std::atoi(value_string.c_str());
   fwrite(&value, sizeof(int), 1, out_file);
 
-  // Value is 1x1x1 blob serialized as int.
+  // Value is 1x1x1 channelset serialized as int.
   channelset_desc.channels = 1;
   channelset_desc.compression = Compression::Value;
 
@@ -499,8 +311,8 @@ cv::Mat DecodeImage(const string* image_file_path, int decode_flag)
   // Open input file for reading binary.
   FILE* in_file;
   CHECK(Platform::fopen_s(&in_file, image_file_path->c_str(), "rb") == 0,
-    "Cannot open image file " + *image_file_path);
-  CHECK(in_file != nullptr, "Cannot open image file " + *image_file_path);
+    "Cannot open image file %s", image_file_path->c_str());
+  CHECK(in_file != nullptr, "Cannot open image file %s", image_file_path->c_str());
 
   // Determine the size of the input file.
   fseek(in_file, 0, SEEK_END);
@@ -520,12 +332,20 @@ cv::Mat DecodeImage(const string* image_file_path, int decode_flag)
 };
 
 // Serializes image to output file.
+// Parameters:
+//  [in]  image_file_path   Path to the image to be serialzied.
+//  [in]  decode_flag       Flag that instructs how image decoding is performed (essentially gs or color).
+//  [in]  transformers_save Array of save transformers to be applied to image before serializing.
+//  [in]  encode_params     Defines how image is encoded before serializing.
+//  [out]  out_file         File handle.
+//  [out]  channelset_desc  Channelset descriptor, function will update number of channels and used compression.
+//  [out]  channelset_inst  Channelset instance, function will update dimensions and byte size.
 void ImageSerialize(
-  FILE* out_file,
-  const string* image_file_path,
+  const string& image_file_path,
   int decode_flag,
   const vector<unique_ptr<ITransformerSave>>* transformers_save,
   const ChannelsetEncodeParams* encode_params,
+  FILE* out_file,
   ChannelSet& channelset_desc,
   ChannelSetInstance& channelset_inst
   )
@@ -533,8 +353,8 @@ void ImageSerialize(
   // Reuse buffer across method calls.
   static vector<unsigned char> recompressed_buffer;
 
-  cv::Mat orig_decoded_image = DecodeImage(image_file_path, decode_flag);
-  CHECK(!orig_decoded_image.empty(), "Decoding of image " + *image_file_path + " failed.");
+  cv::Mat orig_decoded_image = DecodeImage(&image_file_path, decode_flag);
+  CHECK(!orig_decoded_image.empty(), "Decoding of image %s failed.", image_file_path.c_str());
 
   // Store current image of interest.
   cv::Mat* decoded_image = &orig_decoded_image;
@@ -549,10 +369,11 @@ void ImageSerialize(
     swap(decoded_image, transformed_image);
   }
 
-  CHECK(decoded_image != nullptr);
+  CHECK(decoded_image != nullptr, "Decoded image is nullptr after transforms.");
   unsigned char* final_data = nullptr;
   int final_data_size = -1;
-  CHECK(encode_params->compression != Compression::Unknown && encode_params->compression != Compression::Value);
+  CHECK(encode_params->compression != Compression::Unknown && encode_params->compression != Compression::Value,
+    "Serializing image with wrong compression.");
   if (encode_params->compression != Compression::Raw)
   {
     // We need to compress.
@@ -582,99 +403,76 @@ void MakeDataset(const string& config_file_path, const string& out_ds_file_path)
 {
   HeaderDesc header_desc = HeaderDesc::ParseHeader(config_file_path);
 
-  ExamplesDesc examples_desc = ExamplesDesc::ParseExamples(header_desc);
+  vector<vector<string>> examples = ParseExamples(header_desc);
 
   // Open output ids file for writing binary.
   FILE* out_file;
   CHECK(Platform::fopen_s(&out_file, out_ds_file_path.c_str(), "wb") == 0,
-    "Cannot open dataset file " + out_ds_file_path);
-  CHECK(out_file != nullptr, "Cannot open dataset file " + out_ds_file_path);
+    "Cannot open dataset file %s", out_ds_file_path.c_str());
+  CHECK(out_file != nullptr, "Cannot open dataset file %s", out_ds_file_path.c_str());
 
   // Write header.
   DsHeader header;
   fwrite(&header, sizeof(char), sizeof(header), out_file);
-  // Write channelset decriptors.
-  vector<Blob> blobs(header_desc.GetBlobDescsCount());
-  vector<vector<ChannelSet>> channelsets(header_desc.GetBlobDescsCount());
-  for (int ib = 0; ib < header_desc.GetBlobDescsCount(); ib++) {
-    const HeaderBlobDesc* blob_desc = header_desc.GetBlobDesc(ib);
-    fwrite(&blobs[ib], sizeof(Blob), 1, out_file);
-    channelsets[ib].resize(blob_desc->GetChannelsetDescsCount());
-    fwrite(channelsets[ib].data(), sizeof(ChannelSet), channelsets[ib].size(), out_file);
-  }
-
-  // Prepare channelset sizes vector;
-  int total_channelsets_count = 0;
-  for (int ib = 0; ib < header_desc.GetBlobDescsCount(); ib++)
-  {
-    const HeaderBlobDesc* blob_desc = header_desc.GetBlobDesc(ib);
-    total_channelsets_count += blob_desc->GetChannelsetDescsCount();
-  }
+  // Write placeholder for channelset descriptors (they will be updated during dataset creation and
+  // written to the file at the end).
+  vector<ChannelSet> channelsets(header_desc.GetChannelsetDescsCount());
+  fwrite(channelsets.data(), sizeof(ChannelSet), channelsets.size(), out_file);
 
   // We will cache all channelset instances (without memory) at the end of the file to be able to read them in one call
   // and perform chunking and other tasks minimizing disk activity.
   vector<ChannelSetInstance> cached_channelset_insts;
 
   // Now go over all examples and serialize them.
-  for (int ie = 0; ie < examples_desc.GetExampleDescsCount(); ie++)
+  for (size_t ie = 0; ie < examples.size(); ie++)
   {
-    const ExampleDesc& exampleDescNew = *examples_desc.GetExampleDesc(ie);
+    const vector<string>& currExample = examples[ie];
     // Remember example start offset.
     int64_t example_start_offset = Platform::ftell64(out_file);
     // Write example channelset size placeholder.
-    vector<ChannelSetInstance> channelset_insts(total_channelsets_count);
+    vector<ChannelSetInstance> channelset_insts(header_desc.GetChannelsetDescsCount());
     fwrite(channelset_insts.data(), sizeof(ChannelSetInstance), channelset_insts.size(), out_file);
 
-    int curr_channelset = 0;
-    for (int ib = 0; ib < exampleDescNew.GetBlobsDescsCount(); ib++)
+    for (int ics = 0; ics < header_desc.GetChannelsetDescsCount(); ics++)
     {
-      const ExampleBlobDesc* blob_desc = exampleDescNew.GetBlobDesc(ib);
-      int blob_width = -1;
-      int blob_height = -1;
-      for (int ics = 0; ics < blob_desc->GetChannelSetsCount(); ics++)
+      ChannelSet channelset;
+      const Compression compression = header_desc.GetChannelsetDesc(ics)->GetCompression();
+      const string& currExampleCurrChannelset = currExample[ics];
+      // Perform serialization. Each serialization method fill serialize just value/image/tensor and update channelset and
+      // channelset instance (which will not be serialized).
+      // This way we can check if channelset descriptions are consistent accross dataset during creation and serialize
+      // (actually update, since placeholder is written ant the beginning) them at the very end of serialization.
+      // Similarly, for channelset instances we will update them once all channelset memory gets serialized.
+      if (compression == Compression::Value)
       {
-        ChannelSet channelset;
-        const Compression compression = header_desc.GetBlobDesc(ib)->GetChannelsetDesc(ics)->GetCompression();
-        if (compression == Compression::Value)
-        {
-          CHECK(blob_desc->GetType() == ExampleBlobDesc::Type::Value);
-          ValueSerialize(out_file, blob_desc->GetValue(), channelset, channelset_insts[curr_channelset]);
-        }
-        else if (compression == Compression::Tensor)
-        {
-          TensorSerialize(*blob_desc->GetPath(ics), out_file, channelset, channelset_insts[curr_channelset]);
-        }
-        else
-        {
-          ImageSerialize(
-            out_file,
-            blob_desc->GetPath(ics),
-            header_desc.GetChannelsetDecodeFlag(ib, ics),
-            header_desc.GetSaveTransformers(ib, ics),
-            header_desc.GetEncodeParams(ib, ics),
-            channelset,
-            channelset_insts[curr_channelset]
-            );
-        }
-        // Make sure all channelsest at the same index inside example have same number of channels and compression.
-        CHECK(channelsets[ib][ics].channels == -1 || channelsets[ib][ics].channels == channelset.channels);
-        CHECK(channelsets[ib][ics].compression == Compression::Unknown || channelsets[ib][ics].compression == channelset.compression);
-        channelsets[ib][ics] = channelset;
-
-        // Make sure all channelsets inside blob have same dimensions.
-        CHECK(blob_width == -1 || blob_width == channelset_insts[curr_channelset].width);
-        CHECK(blob_height == -1 || blob_height == channelset_insts[curr_channelset].height);
-        blob_width = channelset_insts[curr_channelset].width;
-        blob_height = channelset_insts[curr_channelset].height;
-
-        curr_channelset++;
+        ValueSerialize(currExampleCurrChannelset, /*out*/out_file, /*out*/channelset, /*out*/channelset_insts[ics]);
       }
-      // Make sure all blobs have same number of channelsets.
-      CHECK(blobs[ib].channelsets_count == -1 || blobs[ib].channelsets_count == blob_desc->GetChannelSetsCount());
-      blobs[ib].channelsets_count = blob_desc->GetChannelSetsCount();
+      else if (compression == Compression::Tensor)
+      {
+        TensorSerialize(currExampleCurrChannelset, /*out*/out_file, channelset, /*out*/channelset_insts[ics]);
+      }
+      else
+      {
+        ImageSerialize(
+          currExampleCurrChannelset,
+          header_desc.GetChannelsetDecodeFlag(ics),
+          header_desc.GetSaveTransformers(ics),
+          header_desc.GetEncodeParams(ics),
+          /*out*/out_file,
+          /*out*/channelset,
+          /*out*/channelset_insts[ics]
+          );
+      }
+      // Make sure all channelsest at the same index inside example have same number of channels and compression.
+      CHECK(channelsets[ics].channels == -1 || channelsets[ics].channels == channelset.channels,
+        "Number of channels in channelset is not consistent across samples %d != %d.", channelsets[ics].channels, channelset.channels);
+      CHECK(channelsets[ics].compression == Compression::Unknown || channelsets[ics].compression == channelset.compression,
+        "Compression in channelset is not consistent across samples.");
+      // Update channelset descriptor.
+      channelsets[ics] = channelset;
     }
 
-    // Go back and write channelsets descriptor.
+    // Go back and write channelsets instances.
     int64_t example_end_offset = Platform::ftell64(out_file);
     Platform::fseek64(out_file, example_start_offset, SEEK_SET);
     fwrite(channelset_insts.data(), sizeof(ChannelSetInstance), channelset_insts.size(), out_file);
@@ -691,21 +489,16 @@ void MakeDataset(const string& config_file_path, const string& out_ds_file_path)
   fwrite(cached_channelset_insts.data(), sizeof(ChannelSetInstance), cached_channelset_insts.size(), out_file);
 
   // We finished writing samples, now go back and update header.
-  header.blobs_count_ = header_desc.GetBlobDescsCount();
+  header.channelsets_count = header_desc.GetChannelsetDescsCount();
   header.cached_channelset_instances_start_ = cached_instances_start;
   fseek(out_file, 0, SEEK_SET);
   fwrite(&header, sizeof(DsHeader), 1, out_file);
-  // Update blobs descriptors as well.
-  for (int ib = 0; ib < header_desc.GetBlobDescsCount(); ib++) {
-    const HeaderBlobDesc* header_blob_desc = header_desc.GetBlobDesc(ib);
-    Platform::strcpy_s(blobs[ib].name, c_max_name_len, header_blob_desc->GetName()->c_str());
-    fwrite(&blobs[ib], sizeof(Blob), 1, out_file);
-    for (int ic = 0; ic < channelsets[ib].size(); ic++)
-    {
-        Platform::strcpy_s(channelsets[ib][ic].name, c_max_name_len, header_blob_desc->GetChannelsetDesc(ic)->GetName()->c_str());
-    }
-    fwrite(channelsets[ib].data(), sizeof(ChannelSet), channelsets[ib].size(), out_file);
+  // Update channelset descriptors as well.
+  for (int ic = 0; ic < channelsets.size(); ic++)
+  {
+    Platform::strcpy_s(channelsets[ic].name, c_max_name_len, header_desc.GetChannelsetDesc(ic)->GetName()->c_str());
   }
+  fwrite(channelsets.data(), sizeof(ChannelSet), channelsets.size(), out_file);
 
   fclose(out_file);
 
@@ -718,26 +511,21 @@ void CheckDecoding(const string& config_file_path)
 {
   HeaderDesc header_desc = HeaderDesc::ParseHeader(config_file_path);
 
-  ExamplesDesc examples_desc = ExamplesDesc::ParseExamples(header_desc);
+  vector<vector<string>> examples = ParseExamples(header_desc);
 
-  for (int ie = 0; ie < examples_desc.GetExampleDescsCount(); ie++)
+  for (size_t ie = 0; ie < examples.size(); ie++)
   {
-    const ExampleDesc& exampleDescNew = *examples_desc.GetExampleDesc(ie);
-    for (int ib = 0; ib < exampleDescNew.GetBlobsDescsCount(); ib++)
+    const vector<string>& example = examples[ie];
+    for (int ics = 0; ics < header_desc.GetChannelsetDescsCount(); ics++)
     {
-      const ExampleBlobDesc* blob_desc = exampleDescNew.GetBlobDesc(ib);
-      for (int ics = 0; ics < blob_desc->GetChannelSetsCount(); ics++)
+      const Compression compression = header_desc.GetChannelsetDesc(ics)->GetCompression();
+      if (compression != Compression::Value && compression != Compression::Tensor)
       {
-        const Compression compression
-          = header_desc.GetBlobDesc(ib)->GetChannelsetDesc(ics)->GetCompression();
-        if (compression != Compression::Value && compression != Compression::Tensor)
+        const string& image_file_path = example[ics];
+        if (DecodeImage(&image_file_path, header_desc.GetChannelsetDecodeFlag(ics)).empty())
         {
-          const string* image_file_path = blob_desc->GetPath(ics);
-          if (DecodeImage(image_file_path, header_desc.GetChannelsetDecodeFlag(ib, ics)).empty())
-          {
-            printf("%s\n", image_file_path->c_str());
-            fflush(stdout);
-          }
+          printf("%s\n", image_file_path.c_str());
+          fflush(stdout);
         }
       }
     }

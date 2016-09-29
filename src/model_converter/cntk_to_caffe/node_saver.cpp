@@ -228,17 +228,25 @@ static const int c_channel_dimension = 2;
 static void SetConvolutionLayerParams(shared_ptr<Node> layer, caffe::LayerParameter& param, bool save_weights)
 {
     const NodeAttributes& cntk_layer_params = layer->GetAttributes();
-    param.set_type("Convolution");
 
-    // Get weights params.
-    cntk::ComputationNodeBasePtr weights = cntk_layer_params.at(NodeAttribute::Weights);
-    const size_t weights_param_count = GetParamCount(weights);
-    
     // Get convolution params.
     std::shared_ptr<cntk::ConvolutionNode<float>> conv_cntk_params =
         dynamic_pointer_cast<cntk::ConvolutionNode<float>>(cntk_layer_params.at(NodeAttribute::Operation));
     const int device_id = DeviceInfo::GetInstance().GetId();
     ConvolutionNodeWrapperPtr wrapper = ConvolutionNodeWrapper::CreateWrapper(device_id, *conv_cntk_params);
+
+    if (!wrapper->IsTransposed())
+    {
+        param.set_type("Convolution");
+    }
+    else
+    {
+        param.set_type("Deconvolution");
+    }
+
+    // Get weights params.
+    cntk::ComputationNodeBasePtr weights = cntk_layer_params.at(NodeAttribute::Weights);
+    const size_t weights_param_count = GetParamCount(weights);
 
     const size_t kernel_elements = wrapper->GetKernelShape().GetNumElements();
     const size_t output_maps = weights_param_count / kernel_elements;
@@ -448,7 +456,7 @@ static void SetBatchNormLayerParams(shared_ptr<Node> layer, caffe::LayerParamete
         // inverse standard deviation values to variances.
         auto variance = GetVariance(GetNodeParameters(inv_std_dev), element_count);
         AddBlob(param, variance.data(), { element_count });
-        
+
 
         // Add moving average constant.
         vector<float> c_moving_average_constant{ 1.0f };
@@ -481,13 +489,33 @@ static void SetBatchNormLayerScaleParams(shared_ptr<Node> layer, caffe::LayerPar
     }
 }
 
+#ifdef CONVERT_CROP_NODE
+static void SetCropLayerParams(shared_ptr<Node> layer, caffe::LayerParameter& param)
+{
+    auto cntk_crop = dynamic_pointer_cast<cntk::CropNode<float>>(layer->GetCntkHeadNode());
+    CHECK(cntk_crop != nullptr);
+    param.set_type("Crop");
+    const int device_id = DeviceInfo::GetInstance().GetId();
+    auto wrapper = cntk::CropNodeWrapper<cntk::CropNode<float>>::CreateWrapper(device_id, *cntk_crop);
+    const int x_offset = wrapper->GetOffsetX();
+    const int y_offset = wrapper->GetOffsetY();
+
+    caffe::CropParameter* crop_param = param.mutable_crop_param();
+    crop_param->add_offset(x_offset);
+    crop_param->add_offset(y_offset);
+}
+#endif
+
 static NodeTag GetLayerType(shared_ptr<Node> layer)
 {
-    static const vector<NodeTag> c_caffe_layer_types = 
+    static const vector<NodeTag> c_caffe_layer_types =
     {
         NodeTag::AveragePooling,
         NodeTag::BatchNorm,
         NodeTag::Convolution,
+#ifdef CONVERT_CROP_NODE
+        NodeTag::Crop,
+#endif
         NodeTag::Eltwise,
         NodeTag::InnerProduct,
         NodeTag::InputValue,
@@ -590,6 +618,11 @@ static void NodeToProto(
     case NodeTag::Convolution:
         SetConvolutionLayerParams(layer, *param, save_weights);
         break;
+#ifdef CONVERT_CROP_NODE
+    case NodeTag::Crop:
+        SetCropLayerParams(layer, *param);
+        break;
+#endif
     case NodeTag::Eltwise:
         param->set_type("Eltwise");
         break;

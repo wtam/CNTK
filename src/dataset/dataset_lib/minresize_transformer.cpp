@@ -13,16 +13,22 @@ using namespace std;
 
 MinResizeTransformer::MinResizeTransformer(const TransformParameter& param) : BaseTransformer(param)
 {
-  CHECK(param.type() == GetType());
-  CHECK(param.has_min_resize_param());
+  CHECK(param.type() == GetType(), "Invalid type in MinResizeTransformer: %s", param.type().c_str());
+  CHECK(param.has_min_resize_param(), "Min resize params missing in MinResizeTransformer.");
   min_resize_ = param.min_resize_param().min_size();
+}
+
+void MinResizeTransformer::GetScales(int width, int height, float& scale_x, float& scale_y, float& scale)
+{
+  scale_x = 1.0f * min_resize_ / width;
+  scale_y = 1.0f * min_resize_ / height;
+  scale = max(scale_x, scale_y);
 }
 
 void MinResizeTransformer::GetTransformedSizeImpl(int width, int height, int& new_width, int& new_height)
 {
-  float scale_x = 1.0f * min_resize_ / width;
-  float scale_y = 1.0f * min_resize_ / height;
-  float scale = max(scale_x, scale_y);
+  float scale_x, scale_y, scale;
+  GetScales(width, height, scale_x, scale_y, scale);
   if (scale > 1.0f)
   {
     new_width = (scale_x >= scale_y) ? min_resize_ : static_cast<int>(width * scale);
@@ -36,19 +42,34 @@ void MinResizeTransformer::GetTransformedSizeImpl(int width, int height, int& ne
   }
 }
 
+int MinResizeTransformer::GetRequiredWorkspaceMemoryImpl(int width, int height, int channels)
+{
+  float scale_x, scale_y, scale;
+  GetScales(width, height, scale_x, scale_y, scale);
+  if (scale > 1.0f)
+  {
+    const int new_width = (scale_x >= scale_y) ? min_resize_ : static_cast<int>(width * scale);
+    const int new_height = (scale_y >= scale_x) ? min_resize_ : static_cast<int>(height * scale);
+    return channels * new_height * new_width;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
 void MinResizeTransformer::TransformImpl(vector<TransformableChannelset*>& channelsets)
 {
   // Currently we expect just one channelset.
-  CHECK(channelsets.size() == 1);
+  CHECK(channelsets.size() == 1, "MinResizeTransformer expects one channelset, provided: %u", channelsets.size());
   TransformableChannelset* channelset = channelsets[0];
 
   int height = channelset->Height();
   int width = channelset->Width();
   int channels = channelset->Channels();
 
-  float scale_x = 1.0f * min_resize_ / width;
-  float scale_y = 1.0f * min_resize_ / height;
-  float scale = max(scale_x, scale_y);
+  float scale_x, scale_y, scale;
+  GetScales(width, height, scale_x, scale_y, scale);
   if (scale > 1.0f)
   {
     // We need to rescale.

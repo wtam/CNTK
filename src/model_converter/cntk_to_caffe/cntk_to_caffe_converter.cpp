@@ -52,7 +52,7 @@ class RuleBasedNodeProcessor : public NodesProcessor
 public:
     RuleBasedNodeProcessor(NodeFactory* factory) : factory_(factory)
     {
-        CHECK(factory_ != nullptr);
+        CHECK(factory_ != nullptr, "nullptr factory given to RuleBasedNodeProcessor constructor.");
     }
 
     bool CanBeApplied(const std::list<std::shared_ptr<Node>>& sequence) override
@@ -67,7 +67,7 @@ protected:
     {
         for (const auto& rule : rules_)
         {
-            CHECK(nullptr != rule);
+            CHECK(nullptr != rule, "Rule is null in set of RuleBasedNodeProcessor rules.");
             if (rule->CanBeApplied(nodes))
             {
                 return rule.get();
@@ -106,7 +106,7 @@ public:
     void Apply(list<shared_ptr<Node>>& sequence) override
     {
         const ReduceRule* rule = GetApplicableRule(sequence);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicabeRule returned nullptr rule.");
 
         std::shared_ptr<Node> element_times = sequence.front();
         sequence.pop_front();
@@ -123,7 +123,7 @@ public:
         }
         else
         {
-            CHECK(rule == rules_[1].get());
+            CHECK(rule == rules_[1].get(), "Rules do not match in InputNodeWithScaleTransformProcessor::Apply.");
             input = sequence.front()->GetCntkHeadNode();
             sequence.pop_front();
             scale_param = sequence.front()->GetCntkHeadNode();
@@ -141,7 +141,7 @@ public:
 
 // Replaces CNTK nodes used for describing architecture where there is binary operation which involves learnable
 // parameter as one argument with single node that can be directly transformed to Caffe layer or is intermediate result
-// in constructing Caffe layer. 
+// in constructing Caffe layer.
 class BinaryOpWithLearnableParameterProcessor : public RuleBasedNodeProcessor
 {
 public:
@@ -154,7 +154,7 @@ public:
     void Apply(list<shared_ptr<Node>>& sequence) override
     {
         const ReduceRule* rule = GetApplicableRule(sequence);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
 
         shared_ptr<Node> operation_node = sequence.front();
         sequence.pop_front();
@@ -231,7 +231,7 @@ public:
     void Apply(list<shared_ptr<Node>>& nodes) override
     {
         const ReduceRule* rule = GetApplicableRule(nodes);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
 
         std::shared_ptr<Node> plus = nodes.front();
         nodes.pop_front();
@@ -261,7 +261,7 @@ public:
         plus->AddAttribute(NodeAttribute::Bias, bias);
 
         vector<shared_ptr<Node>> inputs = non_bias_part->GetBottomConnections();
-        CHECK(inputs.size() == 1);
+        CHECK(inputs.size() == 1, "AddBiasProcessor expects 1 input (%d given)", inputs.size());
         shared_ptr<Node> input = inputs.front();
         input->RemoveTopConnection(non_bias_part);
         input->AddTopConnection(plus);
@@ -322,7 +322,7 @@ public:
     void Apply(list<shared_ptr<Node>>& nodes) override
     {
         const ReduceRule* rule = GetApplicableRule(nodes);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
 
         shared_ptr<Node> head_node = nodes.front();
         nodes.pop_front();
@@ -362,7 +362,7 @@ public:
     void Apply(list<shared_ptr<Node>>& nodes) override
     {
         const ReduceRule* rule = GetApplicableRule(nodes);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
         cntk::ComputationNodeBasePtr head_node = nodes.front()->GetCntkHeadNode();
         nodes.front()->AddAttribute(NodeAttribute::Input, head_node);
         nodes.front()->SetTags(rule->GetResolvedTags());
@@ -392,7 +392,7 @@ public:
     void Apply(list<shared_ptr<Node>>& nodes) override
     {
         const ReduceRule* rule = GetApplicableRule(nodes);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
         shared_ptr<Node> batch_norm = nodes.front();
         nodes.pop_front();
         shared_ptr<Node> inv_std_dev = nodes.front();
@@ -427,12 +427,15 @@ public:
     DirectMappingBinaryProcessor(NodeFactory* factory) : RuleBasedNodeProcessor(factory)
     {
         rules_.emplace_back(CreateDirectingMappingRule(NodeTag::Plus, NodeTag::Eltwise));
+#ifdef CONVERT_CROP_NODE
+        rules_.emplace_back(CreateDirectingMappingRule(NodeTag::Crop, NodeTag::Crop));
+#endif
     }
 
     void Apply(list<shared_ptr<Node>>& nodes) override
     {
         const ReduceRule* rule = GetApplicableRule(nodes);
-        CHECK(rule != nullptr);
+        CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
         shared_ptr<Node> operation = nodes.front();
         nodes.pop_front();
         shared_ptr<Node> operand_1 = nodes.front();
@@ -541,9 +544,9 @@ private:
 
     void PushNext(CntkPostfixIterator& iterator, std::list<std::shared_ptr<Node>>& nodes)
     {
-        CHECK(iterator.HasNext());
+        CHECK(iterator.HasNext(), "CntkPostfixIterator doesn't have next cntk node in PushNext.");
         cntk::ComputationNodeBasePtr cntk_node = iterator.GetNext();
-        CHECK(cntk_node != nullptr);
+        CHECK(cntk_node != nullptr, "cntk_node is nullptr in PushNext");
         if (!node_factory_->HasNode(cntk_node))
         {
             // If not already visited, we create new node and set tags to it.
