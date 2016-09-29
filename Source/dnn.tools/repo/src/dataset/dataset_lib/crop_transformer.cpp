@@ -11,8 +11,8 @@ using namespace std;
 
 CropTransformer::CropTransformer(const TransformParameter& param) : BaseTransformer(param)
 {
-  CHECK(param.type() == GetType());
-  CHECK(param.has_crop_param());
+  CHECK(param.type() == GetType(), "Invalid type in CropTransformer %s.", param.type().c_str());
+  CHECK(param.has_crop_param(), "Crop param missing in CropTransformer.");
 
   crop_size_ = param.crop_param().crop_size();
   central_crop_ = param.crop_param().central_crop();
@@ -21,15 +21,21 @@ CropTransformer::CropTransformer(const TransformParameter& param) : BaseTransfor
 void CropTransformer::GetTransformedSizeImpl(int width, int height, int& new_width, int& new_height)
 {
   // We expect we can crop.
-  CHECK(width >= crop_size_ && height >= crop_size_);
+  CHECK(width >= crop_size_ && height >= crop_size_,
+    "Invalid dimensions for crop, width=%d height=%d crop_size=%d", width, height, crop_size_);
   // After this transform dimensions are same to crop size.
   new_width = crop_size_;
   new_height = crop_size_;
 }
 
+int CropTransformer::GetRequiredWorkspaceMemoryImpl(int /*width*/, int /*height*/, int channels)
+{
+  return channels * crop_size_ * crop_size_;
+}
+
 void CropTransformer::TransformImpl(vector<TransformableChannelset*>& channelsets)
 {
-  CHECK(!channelsets.empty());
+  CHECK(!channelsets.empty(), "Empty channelsets in CropTransformer::TransformImpl.");
 
   const int height = channelsets[0]->Height();
   const int width = channelsets[0]->Width();
@@ -37,8 +43,10 @@ void CropTransformer::TransformImpl(vector<TransformableChannelset*>& channelset
   // We require that all channelsets have the same spatial size.
   for (const auto& channelset : channelsets)
   {
-    CHECK(channelset->Height() == height);
-    CHECK(channelset->Width() == width);
+    CHECK(channelset->Height() == height,
+      "Heights differ in CropTransformer::TransformImpl: %d != %d", channelset->Height(), height);
+    CHECK(channelset->Width() == width,
+      "Widths differ in CropTransformer::TransformImpl: %d != %d", channelset->Width(), width);
   }
 
   // We expect we can crop.

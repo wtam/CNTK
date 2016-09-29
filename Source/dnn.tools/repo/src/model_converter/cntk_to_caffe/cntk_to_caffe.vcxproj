@@ -45,7 +45,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CPU_ONLY;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CONVERT_CROP_NODE;CPU_ONLY;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(CaffeRepositoryRoot)\include;$(CntkRepositoryRoot);$(CntkRepositoryRoot)\Source\ActionsLib;$(CntkRepositoryRoot)\Source\Common\Include;$(CntkRepositoryRoot)\Source\ComputationNetworkLib;$(CntkRepositoryRoot)\Source\Math;$(CommonDir)\common_standalone</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -64,7 +64,7 @@ ren $(OutDir)\gflagsd.dll libgflags-debug.dll</Command>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>CPU_ONLY;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CONVERT_CROP_NODE;CPU_ONLY;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(CaffeRepositoryRoot)\include;$(CntkRepositoryRoot);$(CntkRepositoryRoot)\Source\ActionsLib;$(CntkRepositoryRoot)\Source\Common\Include;$(CntkRepositoryRoot)\Source\ComputationNetworkLib;$(CntkRepositoryRoot)\Source\Math;$(CommonDir)\common_standalone</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -153,7 +153,7 @@ ren $(OutDir)\gflags.dll libgflags.dll</Command>
     <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
   </PropertyGroup>
   <Target Name="OriginalBuild" Condition="'$(BuildCntkToCaffe)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
-  <Target Name="SkipBuild" Condition="'$(BuildCntkToCaffe)'!='true'" >
+  <Target Name="SkipBuild" Condition="'$(BuildCntkToCaffe)'!='true'">
     <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
   </Target>
 </Project>

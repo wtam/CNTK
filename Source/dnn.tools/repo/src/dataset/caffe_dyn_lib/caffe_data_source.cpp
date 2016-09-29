@@ -1,5 +1,6 @@
 #include "external_lib_data_source.hpp"
 #include "dataset_io.hpp"
+#include "check.hpp"
 
 #include <array>
 #include <string>
@@ -16,16 +17,6 @@ using namespace std;
 #else
 #define CAFFE_DLL_EXPORT
 #endif
-
-// Helper method for error checking and reporting.
-static void CHECK(bool b, const string& message)
-{
-  if (!b)
-  {
-    cerr << "ERROR: " << message << endl;
-    throw;
-  }
-}
 
 template <typename T>
 struct TypeMap
@@ -111,7 +102,7 @@ public:
         break;
       }
     }
-    CHECK(index != -1, string(blob_name) + " blob asked from caffe not found in dll.");
+    CHECK(index != -1, "Blob with name %s required by Caffe not found in dll.", blob_name);
     return index;
   }
 

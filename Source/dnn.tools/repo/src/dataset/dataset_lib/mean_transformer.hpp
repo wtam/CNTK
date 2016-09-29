@@ -14,6 +14,8 @@ public:
 
   virtual void GetTransformedSizeImpl(int width, int height, int& new_width, int& new_height) override;
 
+  virtual int GetRequiredWorkspaceMemoryImpl(int width, int height, int channels) override;
+
   virtual void TransformImpl(std::vector<TransformableChannelset*>& channelsets) override;
 
 private:

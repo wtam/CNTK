@@ -45,20 +45,11 @@ message ChannelsetSaveParameters
   repeated TransformParameterSave transform_parameter = 4;
 }
 
-// Parameters for one blob saving.
-message BlobSaveParameters
-{
-  // Defines name of the blob.
-  required string name = 1;
-  // Defines parameters for saving contained channelsets.
-  repeated ChannelsetSaveParameters channelset_save_params = 2;
-}
-
 // Describes dataset saving options.
 message DsSaveParameters
 {
-  // Array of parameters for saving each blob.
-  repeated BlobSaveParameters blob_save_params = 1;
+  // Array of parameters for saving each channeelset.
+  repeated ChannelsetSaveParameters channelset_save_params = 1;
   // Path to the listfile describing example channelsets.
   required string list_file_path = 2;
   // Whether to shuffle examples after they are read from the listfile.

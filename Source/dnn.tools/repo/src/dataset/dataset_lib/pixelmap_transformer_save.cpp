@@ -40,7 +40,7 @@ static vector<string> GetLines(const string& filename)
   ifstream fin(filename);
   vector<string> lines;
 
-  CHECK(fin.is_open());
+  CHECK(fin.is_open(), "Input file is not opened in GetLines.");
 
   string line;
 
@@ -67,17 +67,17 @@ static unordered_map<unsigned int, unsigned char> GetMapping(const string& file)
     vector<string> tokens = GetTokens(line, ',');
     // We expect exactly 5 comma separated values:
     // class_string, out_value, in_red, in_green, in_blue
-    CHECK(tokens.size() == 5);
+    CHECK(tokens.size() == 5, "Invalid token count %u (5 expected)", tokens.size());
     // We are not interested in class string.
     int outInt = std::atoi(tokens[1].c_str());
     int redInt = std::atoi(tokens[2].c_str());
     int greenInt = std::atoi(tokens[3].c_str());
     int blueInt = std::atoi(tokens[4].c_str());
     // Ensure values are within expected range and cast to unsigend char.
-    CHECK(outInt <= std::numeric_limits<unsigned char>::max());
-    CHECK(redInt <= std::numeric_limits<unsigned char>::max());
-    CHECK(greenInt <= std::numeric_limits<unsigned char>::max());
-    CHECK(blueInt <= std::numeric_limits<unsigned char>::max());
+    CHECK(outInt <= std::numeric_limits<unsigned char>::max(), "Invalid output value %d in GetMapping: ", outInt);
+    CHECK(redInt <= std::numeric_limits<unsigned char>::max(), "Invalid red value %d in GetMapping: ", redInt);
+    CHECK(greenInt <= std::numeric_limits<unsigned char>::max(), "Invalid green value %d in GetMapping: ", greenInt);
+    CHECK(blueInt <= std::numeric_limits<unsigned char>::max(), "Invalid blue value %d in GetMapping: ", blueInt);
     unsigned char out = static_cast<unsigned char>(outInt);
     unsigned char blue = static_cast<unsigned char>(blueInt);
     unsigned char green = static_cast<unsigned char>(greenInt);
@@ -92,8 +92,8 @@ static unordered_map<unsigned int, unsigned char> GetMapping(const string& file)
 
 PixelMapTransformerSave::PixelMapTransformerSave(const TransformParameterSave& param)
 {
-  CHECK(param.type() == PixelMapTransformerSave::GetTypeString());
-  CHECK(param.has_pixel_map_param());
+  CHECK(param.type() == PixelMapTransformerSave::GetTypeString(), "Invalid type in PixelMapTransformerSave: %s", param.type().c_str());
+  CHECK(param.has_pixel_map_param(), "Pixel map parameter is missing in PixelMapTransformerSave.");
   string mapping_file = param.pixel_map_param().mapping_file();
   // Parse mapping file and save pixel map.
   rgb_to_gs_map_ = GetMapping(mapping_file);
@@ -101,7 +101,8 @@ PixelMapTransformerSave::PixelMapTransformerSave(const TransformParameterSave& p
 
 void PixelMapTransformerSave::Transform(const cv::Mat* in_image, cv::Mat* out_image)
 {
-  CHECK(in_image->channels() == 3);
+  CHECK(in_image->channels() == 3,
+    "Input image to PixelMapTransformerSave::Transform must have 3 channels, %d provided: ", in_image->channels());
   out_image->create(in_image->rows, in_image->cols, CV_8UC(1));
 
   // Go over pixels and for each RGB triplet save mapped value in output image.

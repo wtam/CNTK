@@ -21,7 +21,7 @@ NodeFactory::~NodeFactory() = default;
 
 shared_ptr<Node> NodeFactory::CreateNode(cntk::ComputationNodeBasePtr cntk_node)
 {
-    CHECK(!HasNode(cntk_node));
+    CHECK(!HasNode(cntk_node), "Node is already created in NodeFactory::CreateNode.");
     const int64_t id = GetId(cntk_node);
     nodes_[id] = make_shared<Node>(Node::CreationAttorney(), cntk_node);
     return nodes_[id];

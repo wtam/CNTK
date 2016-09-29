@@ -6,6 +6,7 @@
 
 #Config files
 *.props
+*.config
 
 #Generated files
 *.pb.cc

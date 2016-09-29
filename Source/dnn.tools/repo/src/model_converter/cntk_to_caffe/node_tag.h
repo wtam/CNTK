@@ -11,6 +11,10 @@ enum class NodeTag
     AveragePooling,
     BatchNorm,
     Convolution,
+    // Crop node is still not in CNTK master. After it gets there, remove CONVERT_CROP_NODE from code and vcxproj.
+#ifdef CONVERT_CROP_NODE
+    Crop,
+#endif
     ElementTimes,
     Eltwise,
     InnerProduct,

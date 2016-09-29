@@ -48,7 +48,7 @@ void Scenario::ParseAndRun(int argc, char* argv[])
 
   variables_map options_map;
   store(command_line_parser(argc, argv).options(options_desc_all).run(), options_map);
-  CHECK(options_map.count(c_scenario_param) == 1);
+  CHECK(options_map.count(c_scenario_param) == 1, "Missing scenario parameter.");
   options_map.erase(c_scenario_param);
 
   unordered_map<string, string> final_arguments;
@@ -67,7 +67,7 @@ unique_ptr<Scenario> Scenario::GetScenario(int argc, char* argv[])
   variables_map scenarios_opt_map;
   store(command_line_parser(argc, argv).options(options_desc).allow_unregistered().run(), scenarios_opt_map);
 
-  CHECK(scenarios_opt_map.size() == 1);
+  CHECK(scenarios_opt_map.size() == 1, "Missing scenario parameter.");
 
   string scenario_name = scenarios_opt_map[c_scenario_param].as<string>();
 
@@ -79,7 +79,7 @@ unique_ptr<Scenario> Scenario::GetScenario(int argc, char* argv[])
   }
   else
   {
-    CHECK("false", "ERROR: Unknown scenario " + scenario_name);
+    CHECK(false, "ERROR: Unknown scenario %s.", scenario_name.c_str());
   }
   return nullptr;
 }

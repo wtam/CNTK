@@ -25,6 +25,11 @@ int strcpy_s(char *strDestination, size_t numberOfElements, const char *strSourc
     return ::strcpy_s(strDestination, numberOfElements, strSource);
 }
 
+int vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count, const char* format, va_list argptr)
+{
+  return ::vsnprintf_s(buffer, sizeOfBuffer, count, format, argptr);
+}
+
 #else
 
 int fopen_s(FILE** pFile, const char *filename, const char *mode)
@@ -47,6 +52,11 @@ int strcpy_s(char *strDestination, size_t numberOfElements, const char *strSourc
 {
     strcpy(strDestination, strSource);
     return 0;
+}
+
+int vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t /*count*/, const char* format, va_list argptr)
+{
+  return vsnprintf(buffer, sizeOfBuffer, format, argptr);
 }
 
 #endif

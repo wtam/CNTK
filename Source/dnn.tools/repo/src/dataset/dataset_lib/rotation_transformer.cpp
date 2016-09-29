@@ -17,7 +17,7 @@ using namespace std;
 RotationTransformer::RotationTransformer(const TransformParameter& param)
     : BaseTransformer(param), gen_(mt19937(random_device()()))
 {
-  CHECK(param.type() == GetType());
+  CHECK(param.type() == GetType(), "Invalid type in RotationTransformer %s.", param.type().c_str());
   coef_.resize(dim_);
   for (int i = 0; i < dim_; i++)
   {
@@ -31,16 +31,25 @@ void RotationTransformer::GetTransformedSizeImpl(int width, int height, int& new
   newHeight = height;
 }
 
+int RotationTransformer::GetRequiredWorkspaceMemoryImpl(int width, int height, int channels)
+{
+  return channels * height * width;
+}
+
 void ComputeLinearCombination(const vector<cv::Mat>& in, const vector<double>& coef, cv::Mat& out)
 {
-  CHECK(in.size() == coef.size());
-  CHECK(!in.empty());
-  CHECK(out.depth() == CV_32F);
-  CHECK(in[0].depth() == CV_32F);
+  CHECK(in.size() == coef.size(),
+    "Input size %u and coeff size %u mismatch in ComputeLinearCombination.", in.size(), coef.size());
+  CHECK(!in.empty(), "Empty input in ComputeLinearCombination.");
+  CHECK(out.depth() == CV_32F,
+    "Invalid output depth %d in ComputeLinearCombination (expected depth %d).", out.depth(), CV_32F);
+  CHECK(in[0].depth() == CV_32F,
+    "Invalid input 0 depth %d in ComputeLinearCombination (expected depth %d).", in[0].depth(), CV_32F);
   out = coef[0] * in[0];
   for (int i = 1; i < coef.size(); ++i)
   {
-    CHECK(in[i].depth() == CV_32F);
+    CHECK(in[i].depth() == CV_32F,
+      "Invalid input %d depth %d in ComputeLinearCombination (expected depth %d).", i, in[i].depth(), CV_32F);
     out += coef[i] * in[i];
   }
 }
@@ -54,7 +63,7 @@ void RotationTransformer::TransformImpl(vector<TransformableChannelset*>& channe
   CHECK(total_channel_count == dim_, "Rotation transformer: invalid number of input channels");
 
   // Assign random rotation matrix to coef_.
-  CHECK(dim_ == 2);
+  CHECK(dim_ == 2, "Invalid dimension %d (expected 2) in RotationTransformer::TransformImpl.", dim_);
   const double angle = 4 * asin(1) * uniform_(gen_);
   coef_[0][0] = cos(angle);
   coef_[0][1] = -sin(angle);

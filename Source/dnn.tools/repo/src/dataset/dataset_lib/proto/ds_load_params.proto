@@ -28,12 +28,6 @@ message ChannelwiseScaleShiftParameters
   repeated float shift = 2;
 }
 
-message TransformTarget
-{
-  required string blob_name = 1;
-  required string channelset_name = 2;
-}
-
 message HorizontalFlipParameters
 {
   repeated bool flip_channel_values = 1;
@@ -44,7 +38,7 @@ message TransformParameter {
   // Describes type of the transform.
   required string type = 1;
   // Defines target channelsets for the transform.
-  repeated TransformTarget target = 2;
+  repeated string target = 2;
   
   // Defines parameters for the specific type of transform (only one will be
   // used based on type).
@@ -53,6 +47,14 @@ message TransformParameter {
   optional MeanTransformParameters mean_param = 102;
   optional ChannelwiseScaleShiftParameters channelwise_scale_shift_param = 103;
   optional HorizontalFlipParameters horizontal_flip_param = 104;
+}
+
+// Specifies one blob.
+message BlobDescriptor {
+  // Defines the name of the blob.
+  required string name = 1;
+  // Defines array of channelsets making up the blob.
+  repeated string channelset = 2;
 }
 
 // Specifies dataset loading options.
@@ -65,10 +67,12 @@ message DsLoadParameters{
   required int32 cache_size = 3;
   // Dataset file chunk to be loaded from the disk in one read.
   required int64 disk_prefetch_size = 4;
+  // Describes output blobs.
+  repeated BlobDescriptor blob = 5;
   // Describes transforms to be applied to example.
-  repeated TransformParameter transform_parameter = 5;
+  repeated TransformParameter transform_parameter = 6;
   // Whether to shuffle chunks.
-  optional bool shuffle_chunks = 6 [default = true];
+  optional bool shuffle_chunks = 7 [default = true];
   // Whether to shuffle examples within a chunk.
-  optional bool shuffle_examples = 7 [default = true];
+  optional bool shuffle_examples = 8 [default = true];
 }

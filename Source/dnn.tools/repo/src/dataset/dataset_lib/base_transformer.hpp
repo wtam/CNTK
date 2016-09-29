@@ -24,10 +24,9 @@ public:
   }
 
   // Consolidates target handling for all derived classes.
-  virtual void GetTransformedSize(const std::string& blob_name, const std::string& channelset_name, int width, int height, int& new_width, int& new_height) override final
+  virtual void GetTransformedSize(const std::string& channelset_name, int width, int height, int& new_width, int& new_height) override final
   {
-    TransformerTarget target = { blob_name, channelset_name};
-    if (std::find(targets_.begin(), targets_.end(), target) != targets_.end())
+    if (std::find(targets_.begin(), targets_.end(), channelset_name) != targets_.end())
     {
       // This is our target, invoke derived class.
       GetTransformedSizeImpl(width, height, new_width, new_height);
@@ -41,14 +40,30 @@ public:
   }
 
   // Consolidates target handling for all derived classes.
-  virtual void Transform(const std::vector<TransformableChannelset*>& channelsets) override final
+  virtual int GetRequiredWorkspaceMemory(const std::string& channelset_name, int width, int height, int channels) override final
+  {
+    if (std::find(targets_.begin(), targets_.end(), channelset_name) != targets_.end())
+    {
+      // This is our target, invoke derived class.
+      return GetRequiredWorkspaceMemoryImpl(width, height, channels);
+    }
+    else
+    {
+      // We do not transform this channelset.
+      return 0;
+    }
+  }
+
+  // Consolidates target handling for all derived classes.
+  virtual void Transform(ITransformableChannelsetIterator& channelsets) override final
   {
     std::vector<TransformableChannelset*> filtered_channelsets;
-    for (size_t ic = 0; ic < channelsets.size(); ic++)
+    for (int itc = 0; itc < channelsets.GetTransformableChannelsetsCount(); itc++)
     {
-      if (std::find(targets_.begin(), targets_.end(), *channelsets[ic]->GetTarget()) != targets_.end())
+      TransformableChannelset* channelset = channelsets.GetTransformableChannelset(itc);
+      if (std::find(targets_.begin(), targets_.end(), *channelset->GetTarget()) != targets_.end())
       {
-        filtered_channelsets.push_back(channelsets[ic]);
+        filtered_channelsets.push_back(channelset);
       }
     }
 
@@ -56,7 +71,7 @@ public:
     {
       TransformImpl(filtered_channelsets);
     }
-    // else: no transform needed, this are no our targets.
+    // else: no transform needed, there are no our targets.
   }
 
 protected:
@@ -64,7 +79,7 @@ protected:
   {
     for (int it = 0; it < param.target_size(); it++)
     {
-      targets_.emplace_back(param.target(it).blob_name(), param.target(it).channelset_name());
+      targets_.emplace_back(param.target(it));
     }
   }
 
@@ -73,8 +88,11 @@ private:
   virtual void GetTransformedSizeImpl(int width, int height, int& new_width, int& new_height) = 0;
 
   // Actual implementation implemented for derived class.
+  virtual int GetRequiredWorkspaceMemoryImpl(int width, int height, int channels) = 0;
+
+  // Actual implementation implemented for derived class.
   virtual void TransformImpl(std::vector<TransformableChannelset*>& channelsets) = 0;
 
 private:
-  std::vector<TransformerTarget> targets_;
+  std::vector<std::string> targets_;
 };

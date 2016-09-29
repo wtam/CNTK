@@ -44,7 +44,7 @@ static unique_ptr<T> CreateTransformerBase(const TParam& param, unordered_map<st
   {
     return transformer_factory->second(param);
   }
-  CHECK(false, "Invalid transform: " + type);
+  CHECK(false, "Invalid transform %s.", type.c_str());
   return nullptr;
 }
 

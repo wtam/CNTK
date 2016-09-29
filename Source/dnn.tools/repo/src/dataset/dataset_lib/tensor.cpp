@@ -27,7 +27,7 @@ template <typename T>
 void DecompressTensorValues(const char* in, int in_size, int out_channels, int out_height, int out_width, float* out)
 {
   const int out_count = out_height * out_width * out_channels;
-  CHECK(in_size == out_count * sizeof(T));
+  CHECK(in_size == out_count * sizeof(T), "Invalid tensor input size %d (out_count is %d).", in_size, out_count);
   for (int i = 0; i < out_count; ++i)
   {
     out[i] = static_cast<float>(reinterpret_cast<const T*>(in)[i]);
@@ -65,7 +65,7 @@ void DecompressTensor(
 template <typename T>
 void ReadTensorValuesFromTextFile(ifstream& in_file, int count, vector<char>& buffer)
 {
-  CHECK(count > 0);
+  CHECK(count > 0, "Invalid tensor values count %d (must be positive).", count);
   buffer.resize(count * sizeof(T));
   char* ptr = buffer.data();
   while (in_file.good())
@@ -78,7 +78,7 @@ void ReadTensorValuesFromTextFile(ifstream& in_file, int count, vector<char>& bu
       count--;
     }
   }
-  CHECK(count == 0);
+  CHECK(count == 0, "Invalid tensor values count %d after reading (0 expected).", count);
 }
 
 void ReadTensorFromTextFile(
@@ -90,10 +90,10 @@ void ReadTensorFromTextFile(
   vector<char>& buffer)
 {
   ifstream in_file(file_path);
-  CHECK(in_file.is_open(), "Cannot open text file " + file_path);
+  CHECK(in_file.is_open(), "Cannot open text file %s", file_path.c_str());
 
   // Read data type and shape.
-  CHECK(static_cast<bool>(in_file >> type >> height >> width >> channels));
+  CHECK(static_cast<bool>(in_file >> type >> height >> width >> channels), "Invalid format of tensor txt file.");
 
   const int count = height * width * channels;
 
@@ -122,7 +122,7 @@ void ReadTensorValuesFromBinaryFile(FILE* in_file, int count, vector<char>& buff
   // Read values.
   buffer.resize(count * sizeof(T));
   char* ptr = buffer.data();
-  CHECK(fread(ptr, sizeof(T), count, in_file) == count);
+  CHECK(fread(ptr, sizeof(T), count, in_file) == count, "Reading tensor values from binary file failed.");
 }
 
 // Expected file format:
@@ -141,14 +141,14 @@ void ReadTensorFromBinaryFile(
 {
   FILE* in_file;
   CHECK(Platform::fopen_s(&in_file, file_path.c_str(), "rb") == 0,
-    "Cannot open binary file " + file_path);
-  CHECK(in_file != nullptr, "Cannot open binary file " + file_path);
+    "Cannot open tensor binary file %s", file_path.c_str());
+  CHECK(in_file != nullptr, "Cannot open tensor binary file %s", file_path.c_str());
 
   // Read data type and shape.
-  CHECK(fread(&type, sizeof(TensorType), 1, in_file) == 1);
-  CHECK(fread(&height, sizeof(int), 1, in_file) == 1);
-  CHECK(fread(&width, sizeof(int), 1, in_file) == 1);
-  CHECK(fread(&channels, sizeof(int), 1, in_file) == 1);
+  CHECK(fread(&type, sizeof(TensorType), 1, in_file) == 1, "Reading tensor type from binary file failed.");
+  CHECK(fread(&height, sizeof(int), 1, in_file) == 1, "Reading tensor height from binary file failed.");
+  CHECK(fread(&width, sizeof(int), 1, in_file) == 1, "Reading tensor width from binary file failed.");
+  CHECK(fread(&channels, sizeof(int), 1, in_file) == 1, "Reading tensor channels from binary file failed.");
 
   const int count = height * width * channels;
 
@@ -209,7 +209,7 @@ void TensorSerialize(
   int channels = 0;
 
   const size_t last_dot_pos = in_file_path.find_last_of('.');
-  CHECK(last_dot_pos != string::npos);
+  CHECK(last_dot_pos != string::npos, "Invalid tensor file name %s (extension expected).", in_file_path.c_str());
   const string ext = in_file_path.substr(last_dot_pos);
   if (ext == ".txt")
   {
@@ -221,7 +221,7 @@ void TensorSerialize(
   }
   else
   {
-    CHECK(false, "Unknown extension of tensor file: " + ext);
+    CHECK(false, "Unknown extension of tensor file: %s", ext.c_str());
   }
   WriteTensorToDataset(type, height, width, channels, buffer, out_file, channelset_desc, channelset_inst);
 }

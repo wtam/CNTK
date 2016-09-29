@@ -11,7 +11,7 @@ using namespace std;
 ChannelwiseScaleShiftTransformer::ChannelwiseScaleShiftTransformer(const TransformParameter& param)
     : BaseTransformer(param)
 {
-  CHECK(param.type() == GetType());
+  CHECK(param.type() == GetType(), "Invalid type in ChannelwiseScaleShiftTransformer %s.", param.type().c_str());
   CHECK(param.channelwise_scale_shift_param().shift_size() == param.channelwise_scale_shift_param().scale_size(),
     "The number of shift values must be equal to the number of scale values");
   for (int i = 0; i < param.channelwise_scale_shift_param().shift_size(); ++i) {
@@ -26,6 +26,11 @@ void ChannelwiseScaleShiftTransformer::GetTransformedSizeImpl(int width, int hei
 {
   newWidth = width;
   newHeight = height;
+}
+
+int ChannelwiseScaleShiftTransformer::GetRequiredWorkspaceMemoryImpl(int /*width*/, int /*height*/, int /*channels*/)
+{
+  return 0;
 }
 
 void ChannelwiseScaleShiftTransformer::TransformImpl(std::vector<TransformableChannelset*>& channelsets)
