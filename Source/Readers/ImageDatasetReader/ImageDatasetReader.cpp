@@ -7,6 +7,7 @@
 
 #include "ImageDatasetReader.h"
 
+#include "DataReader.h"
 #include "dataset_io.hpp"
 #include "dataset_events_sink.hpp"
 #include "FramePacker.h"
@@ -299,7 +300,16 @@ public:
     {
         // Save current minibatch size.
         m_minibatchSize = config.m_minibatchSizeInSamples;
-        m_epochSize = config.m_totalEpochSizeInSamples;
+        if (UseAllExamplesFromDatasetForEpoch(config))
+        {
+            // We take all examples from dataset for one epoch.
+            m_epochSize = static_cast<size_t>(m_dsLoader->GetExamplesCount());
+        }
+        else
+        {
+            // We take given number of examples for one epoch.
+            m_epochSize = config.m_totalEpochSizeInSamples;
+        }
         m_currEpochSampleCount = 0;
     }
 
@@ -466,6 +476,12 @@ public:
         m_currEpochSampleCount += static_cast<int>(sampleCount);
 
         return sequences;
+    }
+
+    bool UseAllExamplesFromDatasetForEpoch(const EpochConfiguration& config)
+    {
+        // If epoch size is equal to magic constant than we need to use all examples per epoch.
+        return (config.m_totalEpochSizeInSamples == requestDataSize);
     }
 
 private:
