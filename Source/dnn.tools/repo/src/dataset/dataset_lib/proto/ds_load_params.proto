@@ -28,6 +28,40 @@ message ChannelwiseScaleShiftParameters
   repeated float shift = 2;
 }
 
+// Photometric augmentation from Andrew Howard
+// (http://arxiv.org/abs/1312.5402).
+message ColorJitterTransformParameters
+{
+  // Parameters that determine maximum variation of brightness, contrast, and saturation
+  // relative to their current values. For all three parameters, the values from [0, 1]
+  // make most sense, because current values are multiplied by scalar chosen uniformly at
+  // random from [1 - x, 1 + x], where x is parameter value. For all three parameters, the
+  // recommended value is 0.4 (taken from https://github.com/facebook/fb.resnet.torch).
+  required float brightness = 1;
+  required float contrast = 2;
+  required float saturation = 3;
+
+  optional float upper_bound = 4;
+  optional float lower_bound = 5;
+}
+
+// Scale and aspect ratio augmentations from Inception/GoogLeNet
+// (http://arxiv.org/abs/1409.4842).
+message ResizeCropTransformParameters
+{
+  required int32 crop_size = 1;
+  required float min_area_fraction = 2;
+  required float max_area_fraction = 3;
+  required float min_aspect_ratio = 4;
+  required float max_aspect_ratio = 5;
+}
+
+// AlexNet-style color augmentation.
+message AlexNetColorTransformParameters
+{
+  required float stdev = 1;
+}
+
 message HorizontalFlipParameters
 {
   repeated bool flip_channel_values = 1;
@@ -47,6 +81,9 @@ message TransformParameter {
   optional MeanTransformParameters mean_param = 102;
   optional ChannelwiseScaleShiftParameters channelwise_scale_shift_param = 103;
   optional HorizontalFlipParameters horizontal_flip_param = 104;
+  optional ColorJitterTransformParameters color_jitter_param = 105;
+  optional ResizeCropTransformParameters resize_crop_param = 106;
+  optional AlexNetColorTransformParameters alexnet_color_param = 107;
 }
 
 // Specifies one blob.
@@ -59,20 +96,24 @@ message BlobDescriptor {
 
 // Specifies dataset loading options.
 message DsLoadParameters{
-  // Path to the datset.
-  required string source = 1;
+  // Path to the dataset.
+  required string source_path = 1;
+  required string source_name = 2;
+  // Distributed reading params.
+  optional uint32 loaders_count = 3 [default = 1];
+  optional uint32 loader_index = 4 [default = 0];
   // Number of threads to be used for decompression and transforms.
-  required int32 threads_count = 2;
+  required int32 threads_count = 5;
   // Maximal number of cached examples.
-  required int32 cache_size = 3;
+  required int32 cache_size = 6;
   // Dataset file chunk to be loaded from the disk in one read.
-  required int64 disk_prefetch_size = 4;
+  required int64 disk_prefetch_size = 7;
   // Describes output blobs.
-  repeated BlobDescriptor blob = 5;
+  repeated BlobDescriptor blob = 8;
   // Describes transforms to be applied to example.
-  repeated TransformParameter transform_parameter = 6;
+  repeated TransformParameter transform_parameter = 9;
   // Whether to shuffle chunks.
-  optional bool shuffle_chunks = 7 [default = true];
+  optional bool shuffle_chunks = 10 [default = true];
   // Whether to shuffle examples within a chunk.
-  optional bool shuffle_examples = 8 [default = true];
+  optional bool shuffle_examples = 11 [default = true];
 }

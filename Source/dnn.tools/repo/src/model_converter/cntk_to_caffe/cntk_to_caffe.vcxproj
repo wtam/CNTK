@@ -113,6 +113,9 @@ ren $(OutDir)\gflags.dll libgflags.dll</Command>
     <ProjectReference Include="..\..\common\common_standalone\common_standalone.vcxproj">
       <Project>{6fb55f21-657e-498d-8968-31f57d8c5425}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\common\platform\platform.vcxproj">
+      <Project>{4d5fbc80-637b-4d4b-ba69-d07c7771d818}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

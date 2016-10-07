@@ -197,14 +197,16 @@ public:
 
     // Read header.
     DsHeader header;
-    fread(&header, sizeof(DsHeader), 1, ds_file_);
+    CHECK(fread(&header, sizeof(DsHeader), 1, ds_file_) == 1,
+      "Reading dataset header for file %s failed", parameters.ds_file_path.c_str());
     CHECK(header.ids_file_version_ == c_ids_file_version, "Version mismatch in IDS loading, %d given %d expected.",
       header.ids_file_version_, c_ids_file_version);
 
     // Now read channelsets info.
     std::vector<ChannelSet> channelsets;
     channelsets.resize(header.channelsets_count);
-    fread(channelsets.data(), sizeof(ChannelSet), channelsets.size(), ds_file_);
+    CHECK(fread(channelsets.data(), sizeof(ChannelSet), channelsets.size(), ds_file_) == channelsets.size(),
+      "Reading channelset descriptors for file %s failed", parameters.ds_file_path.c_str());
 
     // Examples start after header (at current position) and end before cached channelset instances.
     int64_t examples_start = Platform::ftell64(ds_file_);
@@ -221,7 +223,9 @@ public:
       cached_channelset_instances_size, sizeof(ChannelSetInstance));
     CHECK(cached_channelset_instances.size() > 0, "Cached channelset instances size cannot be zero.");
     Platform::fseek64(ds_file_, header.cached_channelset_instances_start_, SEEK_SET);
-    fread(cached_channelset_instances.data(), sizeof(ChannelSetInstance), cached_channelset_instances.size(), ds_file_);
+    CHECK(fread(cached_channelset_instances.data(), sizeof(ChannelSetInstance), cached_channelset_instances.size(), ds_file_) ==
+      cached_channelset_instances.size(),
+      "Reading cached channelset instanced for file %s failed.", parameters.ds_file_path.c_str());
 
     // Move all read objects to extended header.
     deserialized_header_.reset(new DeserializedHeader(header, move(channelsets), move(cached_channelset_instances)));
@@ -235,6 +239,7 @@ public:
 
     // Partition file into chunks with the size roughly equal to average prefetch size. We will use these chunks to
     // load portions of the file into the memory.
+    vector<Chunk> all_chunks;
     int64_t offset = examples_start;
     max_chunk_size_ = 0;
     int64_t curr_chunk_size = 0;
@@ -258,7 +263,7 @@ public:
         Chunk new_chunk;
         new_chunk.size = curr_chunk_size + example_size;
         new_chunk.start_offset = curr_chunk_start;
-        chunks_.push_back(new_chunk);
+        all_chunks.push_back(new_chunk);
 
         // Reset current chunk.
         curr_chunk_size = 0;
@@ -283,8 +288,24 @@ public:
       Chunk new_chunk;
       new_chunk.size = curr_chunk_size;
       new_chunk.start_offset = curr_chunk_start;
-      chunks_.push_back(new_chunk);
+      all_chunks.push_back(new_chunk);
     }
+    // Here we have all chunks calculated. In case of distributed loading we want each loader/deserializer to deal with
+    // non-overlapping part of dataset file. Now we will calculate our portion of chunks to follow this principle.
+    CHECK(parameters.derializer_index_ < parameters.derializers_count_,
+      "Invalid deserializer index %u (deserializers count is %u)", parameters.derializer_index_, parameters.derializers_count_);
+    size_t deserializer_chunk_count = all_chunks.size() / parameters.derializers_count_;
+    CHECK(deserializer_chunk_count > 0, "More readers than chunks in dataset file. Decrease the chunks size or readers count.");
+    size_t start_chunk = parameters.derializer_index_ * deserializer_chunk_count;
+    size_t end_chunk = (parameters.derializer_index_ + 1) * deserializer_chunk_count;
+    // Ensure last reader reads till end.
+    if (parameters.derializer_index_ + 1 == parameters.derializers_count_)
+    {
+      end_chunk = all_chunks.size();
+    }
+    // Copy our portion of chunks to internal vector.
+    chunks_.insert(chunks_.begin(), all_chunks.begin() + start_chunk, all_chunks.begin() + end_chunk);
+
     ShuffleChunks();
 
     // We need two buffers + one in case we finished second one while first one is still in processing. We do not expect
@@ -389,7 +410,8 @@ private:
     CHECK(chunk.size <= buffer->memory_size_, "Chunk size %d greater than buffer size %d.", chunk.size, buffer->memory_size_);
     // Load from disk.
     Platform::fseek64(ds_file_, chunk.start_offset, SEEK_SET);
-    fread(buffer->memory_, sizeof(char), chunk.size, ds_file_);
+    CHECK(fread(buffer->memory_, sizeof(char), chunk.size, ds_file_) == static_cast<size_t>(chunk.size),
+      "Reading chunk start_offset=%d, size=%d failed", chunk.start_offset, chunk.size);
 
     if (events_sink_ != nullptr)
     {

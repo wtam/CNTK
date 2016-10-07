@@ -1,9 +1,12 @@
 // All load transformers.
+#include "alexnet_color_transformer.hpp"
 #include "channelwise_scale_shift_transformer.hpp"
+#include "color_jitter_transformer.hpp"
 #include "crop_transformer.hpp"
 #include "horizontal_flip_transformer.hpp"
 #include "mean_transformer.hpp"
 #include "minresize_transformer.hpp"
+#include "resize_crop_transformer.hpp"
 #include "rotation_transformer.hpp"
 // All save transformers.
 #include "fixresize_transformer_save.hpp"
@@ -56,6 +59,9 @@ unordered_map<string, TransformerFactory> transfomers_factory_map =
   MakeFactoryEntry<MeanTransformer, TransformerFactory>(),
   MakeFactoryEntry<ChannelwiseScaleShiftTransformer, TransformerFactory>(),
   MakeFactoryEntry<HorizontalFlipTransformer, TransformerFactory>(),
+  MakeFactoryEntry<AlexNetColorTransformer, TransformerFactory>(),
+  MakeFactoryEntry<ColorJitterTransformer, TransformerFactory>(),
+  MakeFactoryEntry<ResizeCropTransformer, TransformerFactory>(),
   MakeFactoryEntry<RotationTransformer, TransformerFactory>()
 };
 

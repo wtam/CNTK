@@ -1,6 +1,7 @@
 #include "dataset_io.hpp"
 #include "dataset.hpp"
 #include "dataset_events_sink.hpp"
+#include "dataset_load_runtime_overrides.hpp"
 #include "deserializer.hpp"
 #include "background_workers_pool.hpp"
 #include "transformer.hpp"
@@ -202,23 +203,25 @@ template <typename Dtype>
 class DsLoaderImpl : public BackgroundWorkersPool<DeserializedChannelsets, TransformableExample*>, public IDsLoader<Dtype>
 {
 public:
-  DsLoaderImpl(const DsLoadParameters& parameters, DatasetEventsSink* events_sink) :
+  DsLoaderImpl(const DsLoadParameters& parameters, unique_ptr<DatasetEventsSink> events_sink) :
     BackgroundWorkersPool<DeserializedChannelsets, TransformableExample*>(parameters.threads_count())
   {
     // Save configuration.
     configuration_string_ = parameters.DebugString();
 
     // Save events sink.
-    events_sink_ = events_sink;
+    events_sink_ = move(events_sink);
 
     shuffle_examples_ = parameters.shuffle_examples();
 
     // Kick off ids file deserializing.
     unique_ptr<IIDSDeserializer> ids_deserializer = CreateIdsDeserializer({
-      parameters.source(),
+      parameters.source_path() + "/" + parameters.source_name(),
       parameters.disk_prefetch_size(),
-      events_sink,
-      parameters.shuffle_chunks()
+      events_sink_.get(),
+      parameters.shuffle_chunks(),
+      parameters.loader_index(),
+      parameters.loaders_count()
     });
 
     // Save total number of examples.
@@ -525,17 +528,33 @@ private:
 
   string configuration_string_;
 
-  DatasetEventsSink* events_sink_;
+  unique_ptr<DatasetEventsSink> events_sink_;
 };
 
 template <typename Dtype>
-unique_ptr<IDsLoader<Dtype>> CreateLoader(const string& params_file_path, DatasetEventsSink* events_sink) {
+unique_ptr<IDsLoader<Dtype>> CreateLoader(
+  const string& params_file_path,
+  vector<OverridableParam>* runtime_params,
+  unique_ptr<DatasetEventsSink> events_sink
+  )
+{
+  // Read parameters from configuration file.
   DsLoadParameters load_parameters;
   ReadProtoFromTextFile(params_file_path.c_str(), &load_parameters);
-  return unique_ptr<IDsLoader<Dtype>>(new DsLoaderImpl<Dtype>(load_parameters, events_sink));
+  // Override read parameters with runtime options.
+  ApplyRuntimeOverrides(load_parameters, runtime_params);
+  return unique_ptr<IDsLoader<Dtype>>(new DsLoaderImpl<Dtype>(load_parameters, move(events_sink)));
 }
 
 template
-unique_ptr<IDsLoader<float>> CreateLoader<float>(const string& params_file_path, DatasetEventsSink* events_sink);
+unique_ptr<IDsLoader<float>> CreateLoader<float>(
+  const string& params_file_path,
+  vector<OverridableParam>* runtime_params,
+  unique_ptr<DatasetEventsSink> events_sink
+  );
 template
-unique_ptr<IDsLoader<double>> CreateLoader<double>(const string& params_file_path, DatasetEventsSink* events_sink);
+unique_ptr<IDsLoader<double>> CreateLoader<double>(
+  const string& params_file_path,
+  vector<OverridableParam>* runtime_params,
+  unique_ptr<DatasetEventsSink> events_sink
+  );

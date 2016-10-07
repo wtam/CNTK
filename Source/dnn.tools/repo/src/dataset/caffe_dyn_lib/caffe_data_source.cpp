@@ -1,4 +1,5 @@
 #include "external_lib_data_source.hpp"
+#include "dataset_events_sink.hpp"
 #include "dataset_io.hpp"
 #include "check.hpp"
 
@@ -122,7 +123,7 @@ public:
   CaffeDataSource(const string external_lib_params) {
 
     // Create dataset loader.
-    ds_loader_ = CreateLoader<Dtype>(external_lib_params, nullptr);
+    ds_loader_ = CreateLoader<Dtype>(external_lib_params, nullptr, nullptr);
 
     // Take names of the blobs inside dataset.
     int blobs_count = ds_loader_->GetBlobsCount();
