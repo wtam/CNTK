@@ -28,14 +28,15 @@ MeanTransformer::MeanTransformer(const TransformParameter& param) : BaseTransfor
   int orig_mean_channels = 0;
   int orig_mean_height = 0;
   int orig_mean_width = 0;
-  fread(&orig_mean_channels, sizeof(int), 1, mean_file);
-  fread(&orig_mean_height, sizeof(int), 1, mean_file);
-  fread(&orig_mean_width, sizeof(int), 1, mean_file);
+  CHECK(fread(&orig_mean_channels, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_channels in mean transformer failed");
+  CHECK(fread(&orig_mean_height, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_height in mean transformer failed");
+  CHECK(fread(&orig_mean_width, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_width in mean transformer failed");
 
   int orig_mean_size = orig_mean_channels * orig_mean_height * orig_mean_width;
   unique_ptr<float> orig_mean(new float[orig_mean_size]);
 
-  fread(orig_mean.get(), sizeof(float), orig_mean_size, mean_file);
+  CHECK(fread(orig_mean.get(), sizeof(float), orig_mean_size, mean_file) == orig_mean_size,
+    "Reading orig_mean in mean transformer failed");
 
   fclose(mean_file);
 

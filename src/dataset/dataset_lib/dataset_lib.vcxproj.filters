@@ -66,9 +66,6 @@
     <ClInclude Include="minresize_transformer_save.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="prefetcher.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="pixelmap_transformer_save.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -90,7 +87,22 @@
     <ClInclude Include="dataset_events_sink.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="color_jitter_transformer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resize_crop_transformer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="alexnet_color_transformer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="rotation_transformer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="deserializer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dataset_load_runtime_overrides.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -128,9 +140,6 @@
     <ClCompile Include="minresize_transformer_save.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="prefetcher.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="pixelmap_transformer_save.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -143,7 +152,22 @@
     <ClCompile Include="tensor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="color_jitter_transformer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="resize_crop_transformer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="alexnet_color_transformer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="rotation_transformer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="deserializer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dataset_load_runtime_overrides.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,5 +1,6 @@
 #include "test_load_dataset_scenario.hpp"
 
+#include "dataset_events_sink.hpp"
 #include "dataset_io.hpp"
 
 #include <array>
@@ -52,7 +53,7 @@ void TestLoadingScenario::Run(std::unordered_map<string, string>& arguments)
 {
   string input_load_config_path = arguments.find(c_input_param)->second;
 
-  unique_ptr<IDsLoader<float>> ds_loader = CreateLoader<float>(input_load_config_path, nullptr);
+  unique_ptr<IDsLoader<float>> ds_loader = CreateLoader<float>(input_load_config_path, nullptr, nullptr);
 
   int blobs_count = ds_loader->GetBlobsCount();
   std::vector<const char*> blob_names;

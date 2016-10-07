@@ -321,7 +321,8 @@ cv::Mat DecodeImage(const string* image_file_path, int decode_flag)
 
   // Read the contents of the input file into memory buffer.
   buffer.resize(in_file_size);
-  fread(buffer.data(), sizeof(char), in_file_size, in_file);
+  CHECK(fread(buffer.data(), sizeof(char), in_file_size, in_file) == in_file_size,
+    "Reading image %s for decoding failed", image_file_path->c_str());
 
   // Decompress image to determine image size.
   cv::Mat encoded_image(1, (int)in_file_size, CV_8UC1, buffer.data());

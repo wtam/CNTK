@@ -38,5 +38,25 @@ public:
   virtual const char* GetConfiguration() = 0;
 };
 
+// IDs for available overridable parameters.
+enum class OverridableParamID
+{
+  source_path = 0,  // Path to ids file.
+  loader_index,     // In case of distributed reading denotes the index of the reader.
+  loaders_count,    // In case of distributed reading number of readers.
+  count             // Number of allowed overridable parameters.
+};
+
+// Describes how to override parameter.
+struct OverridableParam
+{
+  OverridableParamID id;  // ID of parameter to derive.
+  std::string value;      // New parameter value.
+};
+
 template <typename Dtype>
-std::unique_ptr<IDsLoader<Dtype>> CreateLoader(const std::string& params_file_path, DatasetEventsSink* events_sink);
+std::unique_ptr<IDsLoader<Dtype>> CreateLoader(
+  const std::string& params_file_path,            // Path to the load config file.
+  std::vector<OverridableParam>* runtime_params,  // Optional runtime overrides.
+  std::unique_ptr<DatasetEventsSink> events_sink  // Optional dataset events sink.
+  );

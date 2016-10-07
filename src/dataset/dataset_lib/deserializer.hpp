@@ -87,6 +87,8 @@ struct DeserializeParameters
   int64_t prefetch_size;
   DatasetEventsSink* events_sink;
   bool shuffle_chunks;
+  size_t derializer_index_;
+  size_t derializers_count_;
 };
 
 std::unique_ptr<IIDSDeserializer> CreateIdsDeserializer(const DeserializeParameters& parameters);
