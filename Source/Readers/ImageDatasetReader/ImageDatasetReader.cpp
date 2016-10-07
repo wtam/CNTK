@@ -170,10 +170,10 @@ public:
     {
         m_currEpochSampleCount = 0;
 
-        m_events = make_unique<DatasetEventsSinkImpl>();
+        unique_ptr<DatasetEventsSinkImpl> events_sink = make_unique<DatasetEventsSinkImpl>();
 
         // Kick off loading the dataset.
-        m_dsLoader = CreateLoader<float>(ImageDatasetConfigHelper::GetLoadConfigPath(config), m_events.get());
+        m_dsLoader = CreateLoader<float>(ImageDatasetConfigHelper::GetLoadConfigPath(config), nullptr, move(events_sink));
 
         // Take names of the blobs inside dataset.
         int blobsCount = m_dsLoader->GetBlobsCount();
@@ -497,8 +497,6 @@ private:
     unique_ptr<IDsLoader<float> > m_dsLoader;
     // Object used for storing results from dataset loader.
     unique_ptr<ImageDatasetExample> m_example;
-    // Dataset loader events sink.
-    unique_ptr<DatasetEventsSinkImpl> m_events;
 
     // Size of the current minibatch.
     size_t m_minibatchSize;
