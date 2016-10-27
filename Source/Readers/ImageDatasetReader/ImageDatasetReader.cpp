@@ -443,6 +443,10 @@ public:
                         if (ignoreBuffer != nullptr && c == streamDescriptor.ignoreStream->ignoreLabel)
                         {
                             (*ignoreBuffer)[inz] = 0;
+                            // In spite of ignoring this target we need to set some non-zero index for packer.
+                            // This can be any index that corresponds to this output (inz which corresponds to
+                            // 0 channel (0 class) is fine).
+                            newSequenceDataSparse->m_indicesMemory[inz] = static_cast<IndexType>(inz);
                             continue;
                         }
 
