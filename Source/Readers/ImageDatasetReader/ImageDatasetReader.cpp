@@ -167,13 +167,33 @@ class DataSource : public SequenceEnumerator
 {
 public:
     DataSource(const ConfigParameters& config)
+        : m_epochSize(0), m_currEpochSampleCount(0)
     {
         m_currEpochSampleCount = 0;
 
         unique_ptr<DatasetEventsSinkImpl> events_sink = make_unique<DatasetEventsSinkImpl>();
 
+        // Collect runtime params.
+        vector<OverridableParam> runtimeParameters;
+        m_workerRank = 0;
+        m_numberOfWorkers = 1;
+        if (ImageDatasetConfigHelper::HasWorkerRank(config))
+        {
+            m_workerRank = ImageDatasetConfigHelper::GetWorkerRank(config);
+            runtimeParameters.push_back({ OverridableParamID::loader_index, to_string(m_workerRank) });
+        }
+        if (ImageDatasetConfigHelper::HasWorkersCount(config))
+        {
+            m_numberOfWorkers = ImageDatasetConfigHelper::GetWorkersCount(config);
+            runtimeParameters.push_back({ OverridableParamID::loaders_count, to_string(m_numberOfWorkers) });
+        }
+        if (ImageDatasetConfigHelper::HasDatasetDir(config))
+        {
+            runtimeParameters.push_back({ OverridableParamID::source_path, ImageDatasetConfigHelper::GetDatasetDir(config) });
+        }
+
         // Kick off loading the dataset.
-        m_dsLoader = CreateLoader<float>(ImageDatasetConfigHelper::GetLoadConfigPath(config), nullptr, move(events_sink));
+        m_dsLoader = CreateLoader<float>(ImageDatasetConfigHelper::GetLoadConfigPath(config), &runtimeParameters, move(events_sink));
 
         // Take names of the blobs inside dataset.
         int blobsCount = m_dsLoader->GetBlobsCount();
@@ -298,8 +318,28 @@ public:
 
     virtual void StartEpoch(const EpochConfiguration& config) override
     {
+        // Check that we read all examples from the previous epoch.
+        if (m_epochSize != m_currEpochSampleCount)
+        {
+            RuntimeError("New epoch started without reading all samples from previous epoch (%zd != %zd).",
+                m_epochSize, m_currEpochSampleCount);
+        }
+        // Check workers info.
+        if (m_workerRank != config.m_workerRank)
+        {
+            RuntimeError("Rank changed in image dataset reader.");
+        }
+        if (m_numberOfWorkers != config.m_numberOfWorkers)
+        {
+            RuntimeError("Number of workers changed in image dataset reader.");
+        }
         // Save current minibatch size.
         m_minibatchSize = config.m_minibatchSizeInSamples;
+        // Check that minibatch size is divisible by number of workers.
+        if (m_minibatchSize % m_numberOfWorkers != 0)
+        {
+            RuntimeError("Minibatch size (%zd) not divisible by number of workers (%zd).", m_minibatchSize, m_numberOfWorkers);
+        }
         if (UseAllExamplesFromDatasetForEpoch(config))
         {
             // We take all examples from dataset for one epoch.
@@ -310,17 +350,77 @@ public:
             // We take given number of examples for one epoch.
             m_epochSize = config.m_totalEpochSizeInSamples;
         }
+        // Determine our portion of epoch taking into account number of distributed readers and minibatch size.
+        // First take total number of full minibatches per reader.
+        m_appendLastMinibatch = false;
+        size_t thisReaderEpochSize = ((m_epochSize / m_minibatchSize) * m_minibatchSize) / m_numberOfWorkers;
+        if (m_epochSize % m_minibatchSize != 0)
+        {
+            // We have rest of samples smaller than one minibatch, distribute them evenly.
+            size_t partOfMiniBatch = ((m_epochSize % m_minibatchSize) / m_numberOfWorkers);
+            bool allWorkersActiveInLastMinibatch = true;
+            if (partOfMiniBatch == 0)
+            {
+                // We will not have enough data for the last minibatch for all workers, append this last samples to next
+                // to last minibatch.
+                allWorkersActiveInLastMinibatch = false;
+            }
+            thisReaderEpochSize += partOfMiniBatch;
+            if ((m_epochSize % m_minibatchSize) % m_numberOfWorkers != 0)
+            {
+                // We still have couple of samples left (< m_numberOfWorkers), add them to first readers (by rank).
+                if (m_workerRank < (m_epochSize % m_minibatchSize) % m_numberOfWorkers)
+                {
+                    thisReaderEpochSize++;
+                    if (!allWorkersActiveInLastMinibatch)
+                    {
+                        // We do not have enough data to keep all workers busy at the last minibatch, append it to next to last.
+                        m_appendLastMinibatch = true;
+                    }
+                }
+            }
+        }
+        m_epochSize = thisReaderEpochSize;
+        // We start epoch with 0 read samples.
         m_currEpochSampleCount = 0;
     }
 
-    virtual Sequences GetNextSequences(size_t sampleCount) override
+    virtual Sequences GetNextSequences(size_t totalSampleCount) override
     {
         // This method needs to return final (output) data in a form of set of sequences.
         Sequences sequences;
 
-        // Check if we are about to read all samples in one epoch and set flag if this is the case.
-        if (m_currEpochSampleCount + sampleCount >= m_epochSize)
+        // We expect that we are asked for number of samples equal to minibatch size.
+        if (totalSampleCount != m_minibatchSize)
         {
+            RuntimeError("Mismatch between minibatch size (%zd) and demanded sample count (%zd)", m_minibatchSize, totalSampleCount);
+        }
+
+        // Calculate sample count considering number of workers.
+        size_t sampleCount = totalSampleCount / m_numberOfWorkers;
+        if (sampleCount == 0)
+        {
+            RuntimeError("Greater number of workers than samples in minibatch.");
+        }
+        // So far we have sampleCount as if we deal with full minibatch, now we need to check corner case (end of epoch
+        // where we may not have full minibatch).
+        size_t remainingEpochSamples = m_epochSize - m_currEpochSampleCount;
+        if (m_appendLastMinibatch && (remainingEpochSamples <= 2 * sampleCount))
+        {
+            // If we are appending we need to have one more sample.
+            if (remainingEpochSamples != sampleCount + 1)
+            {
+                RuntimeError("Appending more than one sample (last minibatch size=%zd) to the last minibatch (minibatch size=%zd).",
+                    remainingEpochSamples, sampleCount);
+            }
+            // We are at the next to last minibatch and we need to process all remaining samples (merge with last).
+            sampleCount = remainingEpochSamples;
+            sequences.m_endOfEpoch = true;
+        }
+        else if (!m_appendLastMinibatch && (remainingEpochSamples <= sampleCount))
+        {
+            // We are at the last minibatch, process what we have till end.
+            sampleCount = remainingEpochSamples;
             sequences.m_endOfEpoch = true;
         }
 
@@ -504,6 +604,12 @@ private:
 
     // Size of the current minibatch.
     size_t m_minibatchSize;
+    // Indicates if last minibatch is to be appended to next to last.
+    bool m_appendLastMinibatch;
+    // Distributed reading parameters.
+    size_t m_workerRank;
+    size_t m_numberOfWorkers;
+
 
     size_t m_epochSize;
     size_t m_currEpochSampleCount;

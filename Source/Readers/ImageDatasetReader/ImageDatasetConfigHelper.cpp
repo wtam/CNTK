@@ -38,6 +38,36 @@ string ImageDatasetConfigHelper::GetLoadConfigPath(const ConfigParameters& confi
     return config(L"loadConfigFile");
 }
 
+bool ImageDatasetConfigHelper::HasDatasetDir(const ConfigParameters& config)
+{
+  return config.Exists(L"datasetDir");
+}
+
+string ImageDatasetConfigHelper::GetDatasetDir(const ConfigParameters& config)
+{
+  return config(L"datasetDir");
+}
+
+bool ImageDatasetConfigHelper::HasWorkerRank(const ConfigParameters& config)
+{
+  return config.Exists(L"workerRank");
+}
+
+size_t ImageDatasetConfigHelper::GetWorkerRank(const ConfigParameters& config)
+{
+  return config(L"workerRank");
+}
+
+bool ImageDatasetConfigHelper::HasWorkersCount(const ConfigParameters& config)
+{
+  return config.Exists(L"workersCount");
+}
+
+size_t ImageDatasetConfigHelper::GetWorkersCount(const ConfigParameters& config)
+{
+  return config(L"workersCount");
+}
+
 vector<StreamDescriptor> ImageDatasetConfigHelper::GetStreamDescriptors(const ConfigParameters& config)
 {
     // We expect stream descriptions to be array under "streams".

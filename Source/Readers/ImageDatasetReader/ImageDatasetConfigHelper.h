@@ -46,5 +46,23 @@ public:
 
     // Returns set of stream descriptors from the config.
     static std::vector<StreamDescriptor> GetStreamDescriptors(const ConfigParameters& config);
+
+    // Returns if dataset directory is specified.
+    static bool HasDatasetDir(const ConfigParameters& config);
+
+    // Returns specified dataset directory.
+    static std::string GetDatasetDir(const ConfigParameters& config);
+
+    // Returns if workers rank is specified.
+    static bool HasWorkerRank(const ConfigParameters& config);
+
+    // Returns specified worker rank.
+    static size_t GetWorkerRank(const ConfigParameters& config);
+
+    // Returns if number of workers is specified.
+    static bool HasWorkersCount(const ConfigParameters& config);
+
+    // Returns specified number of workers.
+    static size_t GetWorkersCount(const ConfigParameters& config);
 };
 } } }
