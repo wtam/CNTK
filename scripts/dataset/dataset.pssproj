@@ -10,6 +10,7 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' " />
   <ItemGroup>
     <Compile Include="Copy-Originals.ps1" />
+    <Compile Include="Create-ListFile.ps1" />
     <Compile Include="Create-Poses.ps1" />
   </ItemGroup>
 </Project>

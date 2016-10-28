@@ -122,7 +122,7 @@ void ReadTensorValuesFromBinaryFile(FILE* in_file, int count, vector<char>& buff
   // Read values.
   buffer.resize(count * sizeof(T));
   char* ptr = buffer.data();
-  CHECK(fread(ptr, sizeof(T), count, in_file) == count, "Reading tensor values from binary file failed.");
+  CHECK_ERRNO(fread(ptr, sizeof(T), count, in_file) == count, "Reading tensor values from binary file failed.");
 }
 
 // Expected file format:
@@ -145,10 +145,10 @@ void ReadTensorFromBinaryFile(
   CHECK(in_file != nullptr, "Cannot open tensor binary file %s", file_path.c_str());
 
   // Read data type and shape.
-  CHECK(fread(&type, sizeof(TensorType), 1, in_file) == 1, "Reading tensor type from binary file failed.");
-  CHECK(fread(&height, sizeof(int), 1, in_file) == 1, "Reading tensor height from binary file failed.");
-  CHECK(fread(&width, sizeof(int), 1, in_file) == 1, "Reading tensor width from binary file failed.");
-  CHECK(fread(&channels, sizeof(int), 1, in_file) == 1, "Reading tensor channels from binary file failed.");
+  CHECK_ERRNO(fread(&type, sizeof(TensorType), 1, in_file) == 1, "Reading tensor type from binary file failed.");
+  CHECK_ERRNO(fread(&height, sizeof(int), 1, in_file) == 1, "Reading tensor height from binary file failed.");
+  CHECK_ERRNO(fread(&width, sizeof(int), 1, in_file) == 1, "Reading tensor width from binary file failed.");
+  CHECK_ERRNO(fread(&channels, sizeof(int), 1, in_file) == 1, "Reading tensor channels from binary file failed.");
 
   const int count = height * width * channels;
 
@@ -177,7 +177,7 @@ void WriteTensorToDataset(
   int width,
   int channels,
   const vector<char>& buffer,
-  FILE* out_file,
+  vector<unsigned char>& file_buffer,
   ChannelSet& channelset_desc,
   ChannelSetInstance& channelset_inst)
 {
@@ -189,19 +189,23 @@ void WriteTensorToDataset(
   channelset_inst.width = width;
   channelset_inst.height = height;
 
-  fwrite(&type, sizeof(TensorType), 1, out_file);
-  fwrite(buffer.data(), 1, buffer.size(), out_file);
+  const unsigned char* begin = reinterpret_cast<const unsigned char*>(std::addressof(type));
+  const unsigned char* end = begin + sizeof(TensorType);
+  std::copy(begin, end, back_inserter(file_buffer));
+
+  begin = reinterpret_cast<const unsigned char*>(buffer.data());
+  end = begin + buffer.size()*sizeof(char);
+  std::copy(begin, end, back_inserter(file_buffer));
 }
 
-// Serializes a 3D tensor to output file.
+// Serializes a 3D tensor to output file buffer.
 void TensorSerialize(
   const string& in_file_path,
-  FILE* out_file,
+  vector<unsigned char>& file_buffer,
   ChannelSet& channelset_desc,
   ChannelSetInstance& channelset_inst)
 {
-  // Reuse buffer across function calls.
-  static vector<char> buffer;
+  vector<char> buffer;
 
   TensorType type = TensorType::Int;
   int height = 0;
@@ -223,5 +227,5 @@ void TensorSerialize(
   {
     CHECK(false, "Unknown extension of tensor file: %s", ext.c_str());
   }
-  WriteTensorToDataset(type, height, width, channels, buffer, out_file, channelset_desc, channelset_inst);
+  WriteTensorToDataset(type, height, width, channels, buffer, file_buffer, channelset_desc, channelset_inst);
 }

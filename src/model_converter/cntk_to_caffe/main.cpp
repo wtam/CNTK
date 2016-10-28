@@ -1,5 +1,10 @@
-#include "cntk_to_caffe_converter.h"
+#pragma warning(push, 1)
+#include "gflags/gflags.h"
+#include "glog/logging.h"
+#pragma warning(pop)
 
+#include "cntk_to_caffe_converter.h"
+#include "converter_version.h"
 #include <iostream>
 #include <memory>
 
@@ -27,6 +32,9 @@ int main(int argc, char* argv[])
         Usage();
         return 1;
     }
+    ::google::InitGoogleLogging(argv[0]);
+
+    CheckCntkVersion();
 
     static const string model_input(argv[1]);
     static const string model_output(argv[2]);

@@ -9,10 +9,10 @@ enum class NodeAttribute
 {
     Bias,
     Input,
-    InvStdDev,
     Mean,
     Operation,
     Scale,
+    Variance,
     Weights
 };
 

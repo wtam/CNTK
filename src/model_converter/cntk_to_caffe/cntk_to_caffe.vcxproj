@@ -55,8 +55,7 @@
       <AdditionalDependencies>libcaffe.lib;Common.lib;ComputationNetworkLib.lib;Math.lib;SequenceTrainingLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy $(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly\Math.dll $(OutDir) /Y /D
-ren $(OutDir)\gflagsd.dll libgflags-debug.dll</Command>
+      <Command>xcopy $(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly\Math.dll $(OutDir) /Y /D</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -76,14 +75,14 @@ ren $(OutDir)\gflagsd.dll libgflags-debug.dll</Command>
       <AdditionalDependencies>libcaffe.lib;Common.lib;ComputationNetworkLib.lib;Math.lib;SequenceTrainingLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy $(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly\Math.dll $(OutDir) /Y /D
-ren $(OutDir)\gflags.dll libgflags.dll</Command>
+      <Command>xcopy $(CntkRepositoryRoot)\$(Platform)\$(Configuration)_CpuOnly\Math.dll $(OutDir) /Y /D</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="cntk_node_wrappers.cpp" />
     <ClCompile Include="cntk_postfix_iterator.cpp" />
     <ClCompile Include="cntk_to_caffe_converter.cpp" />
+    <ClCompile Include="converter_version.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="node.cpp" />
     <ClCompile Include="node_factory.cpp" />
@@ -96,6 +95,7 @@ ren $(OutDir)\gflags.dll libgflags.dll</Command>
     <ClInclude Include="cntk_node_wrappers.h" />
     <ClInclude Include="cntk_postfix_iterator.h" />
     <ClInclude Include="cntk_to_caffe_converter.h" />
+    <ClInclude Include="converter_version.h" />
     <ClInclude Include="device_info.h" />
     <ClInclude Include="node.h" />
     <ClInclude Include="nodes_processor.h" />
@@ -153,10 +153,13 @@ ren $(OutDir)\gflags.dll libgflags.dll</Command>
   </Target>
   <PropertyGroup>
     <OriginalBuildDependsOn>$(BuildDependsOn)</OriginalBuildDependsOn>
-    <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
+    <BuildDependsOn>OriginalBuild;SkipBuild;FixGLogNamingBug</BuildDependsOn>
   </PropertyGroup>
   <Target Name="OriginalBuild" Condition="'$(BuildCntkToCaffe)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
   <Target Name="SkipBuild" Condition="'$(BuildCntkToCaffe)'!='true'">
     <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
+  </Target>
+  <Target Name="FixGLogNamingBug" Condition="'$(BuildCntkToCaffe)'=='true'">
+    <Exec ContinueOnError="false" Command="&quot;$(BuildScriptsDir)\FixGFlagsNaming.cmd&quot; &quot;$(OutDir)&quot; $(Configuration)" />
   </Target>
 </Project>

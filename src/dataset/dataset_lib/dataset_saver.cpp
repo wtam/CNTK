@@ -11,8 +11,10 @@
 #include <cstdint>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 #include <unordered_set>
 
@@ -29,6 +31,8 @@ const vector<int> c_jpg_compression_params = { CV_IMWRITE_JPEG_QUALITY, c_jpg_qu
 // Png encoding params.
 const int c_png_quality = 9;
 const vector<int> c_png_compression_params = { CV_IMWRITE_PNG_COMPRESSION, c_png_quality };
+
+mutex g_file_buffer_lock;
 
 // Encoding params struct.
 struct ChannelsetEncodeParams
@@ -218,7 +222,7 @@ public:
 
   const vector<unique_ptr<ITransformerSave>>* GetSaveTransformers(int ic)
   {
-      return channelset_descriptors_[ic].GetTransformers();
+    return channelset_descriptors_[ic].GetTransformers();
   }
 
   const ChannelsetEncodeParams* GetEncodeParams(int ic)
@@ -282,17 +286,19 @@ static vector<vector<string>> ParseExamples(const HeaderDesc& header_desc)
   return examples;
 }
 
-// Serializes value to output file.
+// Serializes value to output buffer.
 // Parameters:
 //  [in]  value_string      String representing integer value to be serialized.
-//  [out] out_file          File handle.
+//  [out] file_buffer       Byte buffer as vector of bytes.
 //  [out] channelset_desc   Channelset descriptor, function will update number of channels and used compression.
 //  [out] channelset_inst   Channelset instance, function will update dimensions and byte size.
-void ValueSerialize(const string& value_string, FILE* out_file, ChannelSet& channelset_desc, ChannelSetInstance& channelset_inst)
+void ValueSerialize(const string& value_string, vector<unsigned char>& file_buffer, ChannelSet& channelset_desc, ChannelSetInstance& channelset_inst)
 {
   // Value is given as string, convert it to integer.
   int value = std::atoi(value_string.c_str());
-  fwrite(&value, sizeof(int), 1, out_file);
+  const unsigned char* begin = reinterpret_cast<const unsigned char*>(std::addressof(value));
+  const unsigned char* end = begin + sizeof(int);
+  std::copy(begin, end, back_inserter(file_buffer));
 
   // Value is 1x1x1 channelset serialized as int.
   channelset_desc.channels = 1;
@@ -303,14 +309,38 @@ void ValueSerialize(const string& value_string, FILE* out_file, ChannelSet& chan
   channelset_inst.height = 1;
 }
 
+size_t ChannelSetInstVectorSerializeToBuffer(const vector<ChannelSetInstance>& channel_inst_vec, vector<unsigned char>& file_buffer)
+{
+  size_t start_position = file_buffer.size();
+
+  const unsigned char* begin = reinterpret_cast<const unsigned char*>(channel_inst_vec.data());
+  const unsigned char* end = begin + sizeof(ChannelSetInstance) * channel_inst_vec.size();
+
+  std::copy(begin, end, back_inserter(file_buffer));
+
+  return start_position;
+}
+
+void ChannelSetInstVectorReplaceInBuffer(const vector<ChannelSetInstance>& channel_inst_vec, const size_t start_position, vector<unsigned char>& file_buffer)
+{
+  const unsigned char* begin = reinterpret_cast<const unsigned char*>(channel_inst_vec.data());
+  const unsigned char* end = begin + sizeof(ChannelSetInstance) * channel_inst_vec.size();
+
+  CHECK(start_position + sizeof(ChannelSetInstance) * channel_inst_vec.size() <= file_buffer.size(),
+    "The buffer overrun hapened during call to ChannelSetInstVectorReplaceInBuffer: \
+         file_buffer size: %lu start_position: %lu channel_inst_vec size: %lu sizeof(ChannelSetInstance): %lu",
+         file_buffer.size(), start_position, channel_inst_vec.size(), sizeof(ChannelSetInstance));
+
+  std::copy(begin, end, std::begin(file_buffer) + start_position);
+}
+
 cv::Mat DecodeImage(const string* image_file_path, int decode_flag)
 {
-  // Reuse buffers across method calls.
-  static vector<unsigned char> buffer;
+  vector<unsigned char> buffer;
 
   // Open input file for reading binary.
   FILE* in_file;
-  CHECK(Platform::fopen_s(&in_file, image_file_path->c_str(), "rb") == 0,
+  CHECK_ERRNO(Platform::fopen_s(&in_file, image_file_path->c_str(), "rb") == 0,
     "Cannot open image file %s", image_file_path->c_str());
   CHECK(in_file != nullptr, "Cannot open image file %s", image_file_path->c_str());
 
@@ -321,7 +351,7 @@ cv::Mat DecodeImage(const string* image_file_path, int decode_flag)
 
   // Read the contents of the input file into memory buffer.
   buffer.resize(in_file_size);
-  CHECK(fread(buffer.data(), sizeof(char), in_file_size, in_file) == in_file_size,
+  CHECK_ERRNO(fread(buffer.data(), sizeof(char), in_file_size, in_file) == in_file_size,
     "Reading image %s for decoding failed", image_file_path->c_str());
 
   // Decompress image to determine image size.
@@ -332,13 +362,13 @@ cv::Mat DecodeImage(const string* image_file_path, int decode_flag)
   return decoded_image;
 };
 
-// Serializes image to output file.
+// Serializes image to output buffer.
 // Parameters:
 //  [in]  image_file_path   Path to the image to be serialzied.
 //  [in]  decode_flag       Flag that instructs how image decoding is performed (essentially gs or color).
 //  [in]  transformers_save Array of save transformers to be applied to image before serializing.
 //  [in]  encode_params     Defines how image is encoded before serializing.
-//  [out]  out_file         File handle.
+//  [out]  file_buffer      File buffer.
 //  [out]  channelset_desc  Channelset descriptor, function will update number of channels and used compression.
 //  [out]  channelset_inst  Channelset instance, function will update dimensions and byte size.
 void ImageSerialize(
@@ -346,13 +376,12 @@ void ImageSerialize(
   int decode_flag,
   const vector<unique_ptr<ITransformerSave>>* transformers_save,
   const ChannelsetEncodeParams* encode_params,
-  FILE* out_file,
+  vector<unsigned char>& file_buffer,
   ChannelSet& channelset_desc,
   ChannelSetInstance& channelset_inst
   )
 {
-  // Reuse buffer across method calls.
-  static vector<unsigned char> recompressed_buffer;
+  vector<unsigned char> recompressed_buffer;
 
   cv::Mat orig_decoded_image = DecodeImage(&image_file_path, decode_flag);
   CHECK(!orig_decoded_image.empty(), "Decoding of image %s failed.", image_file_path.c_str());
@@ -361,8 +390,8 @@ void ImageSerialize(
   cv::Mat* decoded_image = &orig_decoded_image;
 
   // Apply save transforms.
-  static cv::Mat transformed_image_in;
-  static cv::Mat transformed_image_out;
+  cv::Mat transformed_image_in;
+  cv::Mat transformed_image_out;
   cv::Mat* transformed_image = &transformed_image_out;
   for (size_t it = 0; it < transformers_save->size(); it++)
   {
@@ -396,8 +425,11 @@ void ImageSerialize(
   channelset_inst.width = decoded_image->cols;
   channelset_inst.height = decoded_image->rows;
 
-  // Write final data to output file.
-  fwrite(final_data, sizeof(char), final_data_size, out_file);
+  // Write final data to output file buffer.
+  const unsigned char* begin = final_data;
+  const unsigned char* end = begin + final_data_size * sizeof(unsigned char);
+
+  std::copy(begin, end, back_inserter(file_buffer));
 };
 
 void MakeDataset(const string& config_file_path, const string& out_ds_file_path)
@@ -408,7 +440,7 @@ void MakeDataset(const string& config_file_path, const string& out_ds_file_path)
 
   // Open output ids file for writing binary.
   FILE* out_file;
-  CHECK(Platform::fopen_s(&out_file, out_ds_file_path.c_str(), "wb") == 0,
+  CHECK_ERRNO(Platform::fopen_s(&out_file, out_ds_file_path.c_str(), "wb") == 0,
     "Cannot open dataset file %s", out_ds_file_path.c_str());
   CHECK(out_file != nullptr, "Cannot open dataset file %s", out_ds_file_path.c_str());
 
@@ -424,65 +456,117 @@ void MakeDataset(const string& config_file_path, const string& out_ds_file_path)
   // and perform chunking and other tasks minimizing disk activity.
   vector<ChannelSetInstance> cached_channelset_insts;
 
-  // Now go over all examples and serialize them.
-  for (size_t ie = 0; ie < examples.size(); ie++)
-  {
-    const vector<string>& currExample = examples[ie];
-    // Remember example start offset.
-    int64_t example_start_offset = Platform::ftell64(out_file);
-    // Write example channelset size placeholder.
-    vector<ChannelSetInstance> channelset_insts(header_desc.GetChannelsetDescsCount());
-    fwrite(channelset_insts.data(), sizeof(ChannelSetInstance), channelset_insts.size(), out_file);
+  const int num_threads = 16; // Can be exposed as parameters
+  // Max number of examples processed by one thread inside batch.
+  const int load_per_thread = 16; // Can be exposed as parameters
+  // Number of examples inside one batch. Batch is a group of consecutive examples processed in multiple threads and serialized before next group of samples is taken.
+  const int batch_size = num_threads * load_per_thread;
+  vector<vector<unsigned char>> file_buffer_big(batch_size);
+  vector<vector<ChannelSetInstance>> channelset_insts_big(batch_size);
 
-    for (int ics = 0; ics < header_desc.GetChannelsetDescsCount(); ics++)
+  // Create a worker that can ingest a set of channelsets
+  auto worker = [&](size_t start, size_t end, size_t inc)
+  {
+    for (size_t ie = start; ie < end; ie += inc)
     {
-      ChannelSet channelset;
-      const Compression compression = header_desc.GetChannelsetDesc(ics)->GetCompression();
-      const string& currExampleCurrChannelset = currExample[ics];
-      // Perform serialization. Each serialization method fill serialize just value/image/tensor and update channelset and
-      // channelset instance (which will not be serialized).
-      // This way we can check if channelset descriptions are consistent accross dataset during creation and serialize
-      // (actually update, since placeholder is written ant the beginning) them at the very end of serialization.
-      // Similarly, for channelset instances we will update them once all channelset memory gets serialized.
-      if (compression == Compression::Value)
+      vector<unsigned char> file_buffer;
+      const vector<string>& currExample = examples[ie];
+
+      // Write example channelset size placeholder.
+      vector<ChannelSetInstance> channelset_insts(header_desc.GetChannelsetDescsCount());
+
+      // Remember example start offset.
+      auto example_start_offset = ChannelSetInstVectorSerializeToBuffer(channelset_insts, file_buffer);
+
+      for (int ics = 0; ics < header_desc.GetChannelsetDescsCount(); ics++)
       {
-        ValueSerialize(currExampleCurrChannelset, /*out*/out_file, /*out*/channelset, /*out*/channelset_insts[ics]);
+        ChannelSet channelset;
+        const Compression compression = header_desc.GetChannelsetDesc(ics)->GetCompression();
+        const string& currExampleCurrChannelset = currExample[ics];
+        // Perform serialization. Each serialization method fill serialize just value/image/tensor and update channelset and
+        // channelset instance (which will not be serialized).
+        // This way we can check if channelset descriptions are consistent accross dataset during creation and serialize
+        // (actually update, since placeholder is written at the beginning) them at the very end of serialization.
+        // Similarly, for channelset instances we will update them once all channelset memory gets serialized.
+        if (compression == Compression::Value)
+        {
+          ValueSerialize(currExampleCurrChannelset, /*out*/file_buffer, /*out*/channelset, /*out*/channelset_insts[ics]);
+        }
+        else if (compression == Compression::Tensor)
+        {
+          TensorSerialize(currExampleCurrChannelset, /*out*/file_buffer, /*out*/channelset, /*out*/channelset_insts[ics]);
+        }
+        else
+        {
+          ImageSerialize(
+            currExampleCurrChannelset,
+            header_desc.GetChannelsetDecodeFlag(ics),
+            header_desc.GetSaveTransformers(ics),
+            header_desc.GetEncodeParams(ics),
+            /*out*/file_buffer,
+            /*out*/channelset,
+            /*out*/channelset_insts[ics]
+            );
+        }
+        // Make sure all channelsest at the same index inside example have same number of channels and compression.
+        CHECK(channelsets[ics].channels == -1 || channelsets[ics].channels == channelset.channels,
+          "Number of channels in channelset is not consistent across samples %d != %d.", channelsets[ics].channels, channelset.channels);
+        CHECK(channelsets[ics].compression == Compression::Unknown || channelsets[ics].compression == channelset.compression,
+          "Compression in channelset is not consistent across samples.");
+        // Update channelset descriptor.
+        channelsets[ics] = channelset;
       }
-      else if (compression == Compression::Tensor)
-      {
-        TensorSerialize(currExampleCurrChannelset, /*out*/out_file, channelset, /*out*/channelset_insts[ics]);
-      }
-      else
-      {
-        ImageSerialize(
-          currExampleCurrChannelset,
-          header_desc.GetChannelsetDecodeFlag(ics),
-          header_desc.GetSaveTransformers(ics),
-          header_desc.GetEncodeParams(ics),
-          /*out*/out_file,
-          /*out*/channelset,
-          /*out*/channelset_insts[ics]
-          );
-      }
-      // Make sure all channelsest at the same index inside example have same number of channels and compression.
-      CHECK(channelsets[ics].channels == -1 || channelsets[ics].channels == channelset.channels,
-        "Number of channels in channelset is not consistent across samples %d != %d.", channelsets[ics].channels, channelset.channels);
-      CHECK(channelsets[ics].compression == Compression::Unknown || channelsets[ics].compression == channelset.compression,
-        "Compression in channelset is not consistent across samples.");
-      // Update channelset descriptor.
-      channelsets[ics] = channelset;
+
+      // Go back and write channelsets instances.
+      // Update the channelset instances that were written at the start
+      ChannelSetInstVectorReplaceInBuffer(channelset_insts, example_start_offset, file_buffer);
+
+      // Protect this area
+      g_file_buffer_lock.lock();
+
+      channelset_insts_big[ie % batch_size] = std::move(channelset_insts);
+      file_buffer_big[ie % batch_size] = std::move(file_buffer);
+
+      g_file_buffer_lock.unlock();
+      // End of protection
+    }
+  };
+
+  // Partition the examples for processing
+  vector<std::pair<size_t, size_t>> batches;
+  for (size_t ie = 0; ie < examples.size(); ie += batch_size)
+  {
+    batches.emplace_back(ie, std::min<size_t>(ie + batch_size, examples.size()));
+  }
+
+  // Create a thread pool
+  std::vector<std::thread> threads(num_threads);
+  // Go through each partition and then serialize the data to file
+  for (size_t i = 0; i < batches.size(); i++)
+  {
+    // Determine maximum threads needed
+    auto required_threads = std::min<size_t>(batches[i].second - batches[i].first, num_threads);
+
+    // Schedule threads
+    for (size_t thread_counter = 0; thread_counter < required_threads; thread_counter++)
+    {
+      threads[thread_counter] = std::thread(worker, batches[i].first + thread_counter, batches[i].second, load_per_thread);
     }
 
-    // Go back and write channelsets instances.
-    int64_t example_end_offset = Platform::ftell64(out_file);
-    Platform::fseek64(out_file, example_start_offset, SEEK_SET);
-    fwrite(channelset_insts.data(), sizeof(ChannelSetInstance), channelset_insts.size(), out_file);
+    // Wait for threads to finish
+    for (size_t thread_counter = 0; thread_counter < required_threads; thread_counter++)
+    {
+      threads[thread_counter].join();
+    }
 
-    // Copy serialized channelset instances to the cached array.
-    cached_channelset_insts.insert(cached_channelset_insts.end(), channelset_insts.begin(), channelset_insts.end());
-
-    // Go to the end to write next example.
-    Platform::fseek64(out_file, example_end_offset, SEEK_SET);
+    // Write the data for this partition in file and cache the channelset instances for later use
+    for (size_t buffer_counter = 0; buffer_counter < batches[i].second - batches[i].first; buffer_counter++)
+    {
+      const auto& file_buffer = file_buffer_big[buffer_counter];
+      const auto& channelset_insts = channelset_insts_big[buffer_counter];
+      fwrite(file_buffer.data(), sizeof(unsigned char), file_buffer.size(), out_file);
+      cached_channelset_insts.insert(cached_channelset_insts.end(), channelset_insts.begin(), channelset_insts.end());
+    }
   }
 
   // Write cached channelset instances at the end of file. Remember the start position to be able to update header.

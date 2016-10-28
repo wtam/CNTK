@@ -7,7 +7,7 @@
 
 #include "dataset.hpp"
 
-struct DeserializedHeader;
+struct DeserializedDsHeader;
 struct MemoryChunk;
 struct ChannelsetID;
 class DatasetEventsSink;
@@ -20,7 +20,7 @@ struct DeserializedChannelsets
 public:
   DeserializedChannelsets();
 
-  DeserializedChannelsets(std::shared_ptr<MemoryChunk> parent_mem, DeserializedHeader* h, const char* start_address);
+  DeserializedChannelsets(std::shared_ptr<MemoryChunk> parent_mem, DeserializedDsHeader* h, const char* start_address);
 
   ~DeserializedChannelsets();
 
@@ -40,7 +40,7 @@ public:
 
 private:
   std::shared_ptr<MemoryChunk> parent_memory_;
-  DeserializedHeader* deserialized_header_;
+  DeserializedDsHeader* deserialized_header_;
   const ChannelSetInstance* channelset_instances_;
 };
 
@@ -87,8 +87,8 @@ struct DeserializeParameters
   int64_t prefetch_size;
   DatasetEventsSink* events_sink;
   bool shuffle_chunks;
-  size_t derializer_index_;
-  size_t derializers_count_;
+  size_t deserializer_index_;
+  size_t deserializers_count_;
 };
 
 std::unique_ptr<IIDSDeserializer> CreateIdsDeserializer(const DeserializeParameters& parameters);

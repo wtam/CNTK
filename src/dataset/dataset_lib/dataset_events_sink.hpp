@@ -1,6 +1,8 @@
 // Defines dataset events sink interface.
 #pragma once
 
+#include <cstddef>
+
 class DatasetEventsSink
 {
 public:

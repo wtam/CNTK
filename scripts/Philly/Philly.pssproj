@@ -12,6 +12,7 @@
     <Compile Include="example_get_job_list.ps1" />
     <Compile Include="example_get_job_status.ps1" />
     <Compile Include="example_submit_job.ps1" />
+    <Compile Include="parseLogs.ps1" />
     <Compile Include="shared.ps1" />
   </ItemGroup>
 </Project>

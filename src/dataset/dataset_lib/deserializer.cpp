@@ -50,11 +50,12 @@ struct ChannelsetID
   size_t index;
 };
 
-// Describes deserialized header.
-struct DeserializedHeader
+// Describes deserialized header. This header contains information related to the whole dataset (DsHeader + all info
+// related to whole dataset that is not serialized as part of DsHeader due to file format).
+struct DeserializedDsHeader
 {
 public:
-  DeserializedHeader(const DsHeader& header, std::vector<ChannelSet>&& channelsets,
+  DeserializedDsHeader(const DsHeader& header, std::vector<ChannelSet>&& channelsets,
     std::vector<ChannelSetInstance>&& cached_channelset_instances)
   {
     header_ = header;
@@ -125,7 +126,7 @@ DeserializedChannelsets::DeserializedChannelsets()
   channelset_instances_ = nullptr;
 }
 
-DeserializedChannelsets::DeserializedChannelsets(std::shared_ptr<MemoryChunk> parent_mem, DeserializedHeader* h, const char* start_address)
+DeserializedChannelsets::DeserializedChannelsets(std::shared_ptr<MemoryChunk> parent_mem, DeserializedDsHeader* h, const char* start_address)
 {
   // Let parent memory know we are referencing it now.
   parent_memory_ = parent_mem;
@@ -191,13 +192,13 @@ public:
     shuffle_chunks_(parameters.shuffle_chunks)
   {
     // Open ids file.
-    CHECK(Platform::fopen_s(&ds_file_, parameters.ds_file_path.c_str(), "rb") == 0,
+    CHECK_ERRNO(Platform::fopen_s(&ds_file_, parameters.ds_file_path.c_str(), "rb") == 0,
       "Failed to open ds file %s", parameters.ds_file_path.c_str());
     CHECK(ds_file_ != nullptr, "Failed to open ds file %s", parameters.ds_file_path.c_str());
 
     // Read header.
     DsHeader header;
-    CHECK(fread(&header, sizeof(DsHeader), 1, ds_file_) == 1,
+    CHECK_ERRNO(fread(&header, sizeof(DsHeader), 1, ds_file_) == 1,
       "Reading dataset header for file %s failed", parameters.ds_file_path.c_str());
     CHECK(header.ids_file_version_ == c_ids_file_version, "Version mismatch in IDS loading, %d given %d expected.",
       header.ids_file_version_, c_ids_file_version);
@@ -205,12 +206,11 @@ public:
     // Now read channelsets info.
     std::vector<ChannelSet> channelsets;
     channelsets.resize(header.channelsets_count);
-    CHECK(fread(channelsets.data(), sizeof(ChannelSet), channelsets.size(), ds_file_) == channelsets.size(),
+    CHECK_ERRNO(fread(channelsets.data(), sizeof(ChannelSet), channelsets.size(), ds_file_) == channelsets.size(),
       "Reading channelset descriptors for file %s failed", parameters.ds_file_path.c_str());
 
     // Examples start after header (at current position) and end before cached channelset instances.
-    int64_t examples_start = Platform::ftell64(ds_file_);
-    int64_t examples_end = header.cached_channelset_instances_start_;
+    int64_t examples_start_offset = Platform::ftell64(ds_file_);
 
     // Read cached channelset instances.
     Platform::fseek64(ds_file_, 0, SEEK_END);
@@ -223,15 +223,80 @@ public:
       cached_channelset_instances_size, sizeof(ChannelSetInstance));
     CHECK(cached_channelset_instances.size() > 0, "Cached channelset instances size cannot be zero.");
     Platform::fseek64(ds_file_, header.cached_channelset_instances_start_, SEEK_SET);
-    CHECK(fread(cached_channelset_instances.data(), sizeof(ChannelSetInstance), cached_channelset_instances.size(), ds_file_) ==
+    CHECK_ERRNO(fread(cached_channelset_instances.data(), sizeof(ChannelSetInstance), cached_channelset_instances.size(), ds_file_) ==
       cached_channelset_instances.size(),
       "Reading cached channelset instanced for file %s failed.", parameters.ds_file_path.c_str());
 
     // Move all read objects to extended header.
-    deserialized_header_.reset(new DeserializedHeader(header, move(channelsets), move(cached_channelset_instances)));
+    deserialized_header_.reset(new DeserializedDsHeader(header, move(channelsets), move(cached_channelset_instances)));
+
+    // Now handle distributed reading, each deserializer needs to read equal number of examples (if examples count is not
+    // divisible with deserializers count first n deserializers will read one more sample (where n is division remainder)).
+    struct DeserializerExamplesPortion
+    {
+      size_t start_example_;
+      size_t examples_count_;
+    };
+    // We will calculate example counts for all deserializers (distribute them as evenly as possible using strategy
+    // described above).
+    vector<DeserializerExamplesPortion> examples_per_deserializer(parameters.deserializers_count_);
+    size_t total_examples_count = deserialized_header_->GetExamplesCount();
+    size_t one_deserializer_examples_count = total_examples_count / parameters.deserializers_count_;
+    // Ensure we properly distribute leftover examples (add 1 to first deserializers).
+    size_t leftover_samples = total_examples_count % parameters.deserializers_count_;
+    for (size_t ir = 0; ir < parameters.deserializers_count_; ir++)
+    {
+      examples_per_deserializer[ir].examples_count_ = one_deserializer_examples_count;
+      if (ir < leftover_samples)
+      {
+        examples_per_deserializer[ir].examples_count_++;
+      }
+    }
+    // Now calculate start example position for all deserializers.
+    examples_per_deserializer[0].start_example_ = 0;
+    for (size_t ir = 1; ir < parameters.deserializers_count_; ir++)
+    {
+      examples_per_deserializer[ir].start_example_ =
+        examples_per_deserializer[ir - 1].start_example_ + examples_per_deserializer[ir - 1].examples_count_;
+    }
+    // Now calculate examples range offsets for this deserializer. examples_start_offset is at the beginning of the
+    // first deserializer we need to add all example sizes for previous deserializers.
+    const int64_t example_header_size = deserialized_header_->GetChannelsetsCount() * sizeof(ChannelSetInstance);
+    int curr_cached_channelset_instance_start = 0;
+    // Loop over previous deserializers.
+    for (size_t ir = 0; ir < parameters.deserializer_index_; ir++)
+    {
+      // Loop over all examples for previous deserializer and update start offset (keep adding to it).
+      for (size_t ie = 0; ie < examples_per_deserializer[ir].examples_count_; ie++)
+      {
+        for (size_t ic = 0; ic < deserialized_header_->GetChannelsetsCount(); ic++)
+        {
+          examples_start_offset += (*deserialized_header_->GetChannelsetInstances())[curr_cached_channelset_instance_start + ic].size;
+        }
+        examples_start_offset += example_header_size;
+        curr_cached_channelset_instance_start += deserialized_header_->GetChannelsetsCount();
+      }
+    }
+    // We are at start here, remember our cached instance start.
+    int cached_channelset_instance_start = curr_cached_channelset_instance_start;
+    // Now calculate end offset (starts with start offset and keep adding).
+    int curr_cached_channelset_instance_end = curr_cached_channelset_instance_start;
+    int64_t examples_end_offset = examples_start_offset;
+    for (size_t ie = 0; ie < examples_per_deserializer[parameters.deserializer_index_].examples_count_; ie++)
+    {
+      for (size_t ic = 0; ic < deserialized_header_->GetChannelsetsCount(); ic++)
+      {
+        examples_end_offset += (*deserialized_header_->GetChannelsetInstances())[curr_cached_channelset_instance_end + ic].size;
+      }
+      examples_end_offset += example_header_size;
+      curr_cached_channelset_instance_end += deserialized_header_->GetChannelsetsCount();
+    }
+    // We are at the end here, remember our cached instance end.
+    int cached_channelset_instance_end = curr_cached_channelset_instance_end;
+    // Here we have all data related to examples portion for this deserializer. Now we can do chunking.
 
     // Calculate average prefetch size based on desired prefetch size.
-    int64_t examples_total_size = examples_end - examples_start;
+    int64_t examples_total_size = examples_end_offset - examples_start_offset;
     CHECK(examples_total_size > 0, "examples_total_size cannot be 0.");
     const int64_t desired_prefetch_size = parameters.prefetch_size;
     int64_t chunks_count = (examples_total_size + desired_prefetch_size - 1) / desired_prefetch_size;
@@ -239,19 +304,18 @@ public:
 
     // Partition file into chunks with the size roughly equal to average prefetch size. We will use these chunks to
     // load portions of the file into the memory.
-    vector<Chunk> all_chunks;
-    int64_t offset = examples_start;
+    int64_t offset = examples_start_offset;
     max_chunk_size_ = 0;
     int64_t curr_chunk_size = 0;
     int64_t curr_chunk_start = offset;
-    int64_t example_header_size = deserialized_header_->GetChannelsetsCount() * sizeof(ChannelSetInstance);
-    int curr_cached_channelset_instance = 0;
-    while (offset < examples_end)
+    int curr_cached_channelset_instance_chunk = cached_channelset_instance_start;
+    while (offset < examples_end_offset)
     {
       // Calculate the size of the example.
       int example_data_size = 0;
-      for (size_t ic = 0; ic < deserialized_header_->GetChannelsetsCount(); ic++) {
-        example_data_size += (*deserialized_header_->GetChannelsetInstances())[curr_cached_channelset_instance + ic].size;
+      for (size_t ic = 0; ic < deserialized_header_->GetChannelsetsCount(); ic++)
+      {
+        example_data_size += (*deserialized_header_->GetChannelsetInstances())[curr_cached_channelset_instance_chunk + ic].size;
       }
 
       int64_t example_size = example_header_size + example_data_size;
@@ -263,24 +327,25 @@ public:
         Chunk new_chunk;
         new_chunk.size = curr_chunk_size + example_size;
         new_chunk.start_offset = curr_chunk_start;
-        all_chunks.push_back(new_chunk);
+        chunks_.push_back(new_chunk);
 
         // Reset current chunk.
         curr_chunk_size = 0;
         curr_chunk_start = new_chunk.start_offset + new_chunk.size;
       }
-      else {
+      else
+      {
         // Keep adding to current chunk.
         curr_chunk_size += example_size;
       }
 
       offset += example_size;
-      curr_cached_channelset_instance += deserialized_header_->GetChannelsetsCount();
+      curr_cached_channelset_instance_chunk += deserialized_header_->GetChannelsetsCount();
     }
-    CHECK(offset == examples_end, "offset %d must be equal to examples_end %d.", offset, examples_end);
-    CHECK(curr_cached_channelset_instance == static_cast<int>(deserialized_header_->GetChannelsetInstances()->size()),
-      "curr_cached_channelset_instance %d is not equal to cached channelset instances count %u.",
-      curr_cached_channelset_instance, deserialized_header_->GetChannelsetInstances()->size());
+    CHECK(offset == examples_end_offset, "offset %d must be equal to examples_end_offset %d.", offset, examples_end_offset);
+    CHECK(curr_cached_channelset_instance_chunk == cached_channelset_instance_end,
+      "Mismatch between curr_cached_channelset_instance_chunk (%d) and cached_channelset_instance_end (%d)",
+      curr_cached_channelset_instance_chunk, cached_channelset_instance_end);
     // Save the last chunk if we have file portion left at the end.
     if (curr_chunk_size != 0)
     {
@@ -288,23 +353,8 @@ public:
       Chunk new_chunk;
       new_chunk.size = curr_chunk_size;
       new_chunk.start_offset = curr_chunk_start;
-      all_chunks.push_back(new_chunk);
+      chunks_.push_back(new_chunk);
     }
-    // Here we have all chunks calculated. In case of distributed loading we want each loader/deserializer to deal with
-    // non-overlapping part of dataset file. Now we will calculate our portion of chunks to follow this principle.
-    CHECK(parameters.derializer_index_ < parameters.derializers_count_,
-      "Invalid deserializer index %u (deserializers count is %u)", parameters.derializer_index_, parameters.derializers_count_);
-    size_t deserializer_chunk_count = all_chunks.size() / parameters.derializers_count_;
-    CHECK(deserializer_chunk_count > 0, "More readers than chunks in dataset file. Decrease the chunks size or readers count.");
-    size_t start_chunk = parameters.derializer_index_ * deserializer_chunk_count;
-    size_t end_chunk = (parameters.derializer_index_ + 1) * deserializer_chunk_count;
-    // Ensure last reader reads till end.
-    if (parameters.derializer_index_ + 1 == parameters.derializers_count_)
-    {
-      end_chunk = all_chunks.size();
-    }
-    // Copy our portion of chunks to internal vector.
-    chunks_.insert(chunks_.begin(), all_chunks.begin() + start_chunk, all_chunks.begin() + end_chunk);
 
     ShuffleChunks();
 
@@ -410,7 +460,7 @@ private:
     CHECK(chunk.size <= buffer->memory_size_, "Chunk size %d greater than buffer size %d.", chunk.size, buffer->memory_size_);
     // Load from disk.
     Platform::fseek64(ds_file_, chunk.start_offset, SEEK_SET);
-    CHECK(fread(buffer->memory_, sizeof(char), chunk.size, ds_file_) == static_cast<size_t>(chunk.size),
+    CHECK_ERRNO(fread(buffer->memory_, sizeof(char), chunk.size, ds_file_) == static_cast<size_t>(chunk.size),
       "Reading chunk start_offset=%d, size=%d failed", chunk.start_offset, chunk.size);
 
     if (events_sink_ != nullptr)
@@ -430,7 +480,7 @@ private:
   }
   std::unique_ptr<FixedMemoryManager<MemoryChunk, char, void*>> mem_mgr_;
 
-  unique_ptr<DeserializedHeader> deserialized_header_;
+  unique_ptr<DeserializedDsHeader> deserialized_header_;
 
   FILE* ds_file_;
 
