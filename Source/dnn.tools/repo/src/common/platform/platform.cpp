@@ -1,5 +1,9 @@
 #include "platform.hpp"
 
+#include <algorithm>
+
+using namespace std;
+
 namespace Platform
 {
 
@@ -30,6 +34,11 @@ int vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count, const char* for
   return ::vsnprintf_s(buffer, sizeOfBuffer, count, format, argptr);
 }
 
+int strerror_s(char* buffer, size_t numberOfElements, int errnum)
+{
+  return ::strerror_s(buffer, numberOfElements, errnum);
+}
+
 #else
 
 int fopen_s(FILE** pFile, const char *filename, const char *mode)
@@ -57,6 +66,14 @@ int strcpy_s(char *strDestination, size_t numberOfElements, const char *strSourc
 int vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t /*count*/, const char* format, va_list argptr)
 {
   return vsnprintf(buffer, sizeOfBuffer, format, argptr);
+}
+
+int strerror_s(char* buffer, size_t numberOfElements, int errnum)
+{
+  char* mess = strerror(errnum);
+  size_t len = min(numberOfElements, strlen(mess));
+  strncpy(buffer, mess, len);
+  return 0;
 }
 
 #endif

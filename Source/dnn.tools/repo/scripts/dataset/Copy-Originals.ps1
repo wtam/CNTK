@@ -26,11 +26,25 @@ Param (
 
 $imageSubdirRelativePath = Join-Path "SLTrainingTestingData" "IrisDataset"
 $poseFileRelativePath = "camera_poses.txt"
+$robocopy = "robocopy.exe"
+
+# Stop script on any error.
+$ErrorActionPreference = "Stop"
 
 New-Item -ItemType Directory -Path "$DestDir" | Out-Null
 Get-ChildItem -Directory -Path "$SourceDir" |
 % {
     $clipDestDir = Join-Path $DestDir $_
-    Copy-Item (Join-Path (Join-Path $SourceDir $_) $imageSubdirRelativePath) $clipDestDir -Recurse
-    Copy-Item (Join-Path (Join-Path $SourceDir $_) $poseFileRelativePath) $clipDestDir
+
+    & $robocopy `
+    (Join-Path (Join-Path $SourceDir $_) $imageSubdirRelativePath), `
+    $clipDestDir, `
+    "/mt", "/e" | Out-Null
+
+    $poseFileAbsolutePath = Join-Path (Join-Path $SourceDir $_) $poseFileRelativePath
+
+    & $robocopy `
+    (Split-Path $poseFileAbsolutePath -Parent), `
+    $clipDestDir, `
+    (Split-Path $poseFileAbsolutePath -Leaf) | Out-Null
 }

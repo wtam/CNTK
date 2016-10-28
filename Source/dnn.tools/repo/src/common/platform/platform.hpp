@@ -24,4 +24,6 @@ int strcpy_s(char *strDestination, size_t numberOfElements, const char *strSourc
 //  argptr - Pointer to list of arguments.
 int vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count, const char* format, ::va_list argptr);
 
+int strerror_s(char* buffer, size_t numberOfElements, int errnum);
+
 }

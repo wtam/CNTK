@@ -421,30 +421,16 @@ static void SetPoolingLayerParams(
     GetPoolingMethod<CntkPoolingNodeType>());
 }
 
-static vector<float> GetVariance(const float* inv_std_dev, int element_count)
-{
-    vector<float> variance(element_count, 0.0f);
-    for (int index = 0; index < element_count; ++index)
-    {
-        const float inv_std_val = inv_std_dev[index];
-        const float inv_var_val = inv_std_val * inv_std_val;
-        const float c_eps = 0.00001f;
-        const float var_val = 1.0f / (c_eps + inv_var_val);
-        variance[index] = var_val;
-    }
-    return variance;
-}
-
 static void SetBatchNormLayerParams(shared_ptr<Node> layer, caffe::LayerParameter& param, bool save_weights)
 {
     param.set_type("BatchNorm");
     const NodeAttributes& cntk_layer_params = layer->GetAttributes();
-    cntk::ComputationNodeBasePtr inv_std_dev = cntk_layer_params.at(NodeAttribute::InvStdDev);
+    cntk::ComputationNodeBasePtr variance = cntk_layer_params.at(NodeAttribute::Variance);
     cntk::ComputationNodeBasePtr mean = cntk_layer_params.at(NodeAttribute::Mean);
 
     const int element_count = GetParamCount(mean);
-    const int inv_std_dev_element_count = GetParamCount(inv_std_dev);
-    CHECK(element_count == inv_std_dev_element_count);
+    const int variance_element_count = GetParamCount(variance);
+    CHECK(element_count == variance_element_count);
 
     if (save_weights)
     {
@@ -452,10 +438,7 @@ static void SetBatchNormLayerParams(shared_ptr<Node> layer, caffe::LayerParamete
         AddBlob(param, GetNodeParameters(mean), { element_count });
 
         // Save variance
-        // CNTK stores inverse standard deviation values, while Caffe stores variance, so we have to convert
-        // inverse standard deviation values to variances.
-        auto variance = GetVariance(GetNodeParameters(inv_std_dev), element_count);
-        AddBlob(param, variance.data(), { element_count });
+        AddBlob(param, GetNodeParameters(variance), { element_count });
 
 
         // Add moving average constant.

@@ -22,20 +22,20 @@ MeanTransformer::MeanTransformer(const TransformParameter& param) : BaseTransfor
 
   // Load mean from the mean file.
   FILE* mean_file;
-  CHECK(Platform::fopen_s(&mean_file, mean_file_path.c_str(), "rb") == 0, "Failed to open mean file %s", mean_file_path.c_str());
+  CHECK_ERRNO(Platform::fopen_s(&mean_file, mean_file_path.c_str(), "rb") == 0, "Failed to open mean file %s", mean_file_path.c_str());
   CHECK(mean_file != nullptr, "Failed to open mean file %s", mean_file_path.c_str());
 
   int orig_mean_channels = 0;
   int orig_mean_height = 0;
   int orig_mean_width = 0;
-  CHECK(fread(&orig_mean_channels, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_channels in mean transformer failed");
-  CHECK(fread(&orig_mean_height, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_height in mean transformer failed");
-  CHECK(fread(&orig_mean_width, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_width in mean transformer failed");
+  CHECK_ERRNO(fread(&orig_mean_channels, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_channels in mean transformer failed");
+  CHECK_ERRNO(fread(&orig_mean_height, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_height in mean transformer failed");
+  CHECK_ERRNO(fread(&orig_mean_width, sizeof(int), 1, mean_file) == 1, "Reading orig_mean_width in mean transformer failed");
 
   int orig_mean_size = orig_mean_channels * orig_mean_height * orig_mean_width;
   unique_ptr<float> orig_mean(new float[orig_mean_size]);
 
-  CHECK(fread(orig_mean.get(), sizeof(float), orig_mean_size, mean_file) == orig_mean_size,
+  CHECK_ERRNO(fread(orig_mean.get(), sizeof(float), orig_mean_size, mean_file) == orig_mean_size,
     "Reading orig_mean in mean transformer failed");
 
   fclose(mean_file);

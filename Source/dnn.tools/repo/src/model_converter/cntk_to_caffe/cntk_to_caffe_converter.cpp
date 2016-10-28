@@ -395,7 +395,7 @@ public:
         CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
         shared_ptr<Node> batch_norm = nodes.front();
         nodes.pop_front();
-        shared_ptr<Node> inv_std_dev = nodes.front();
+        shared_ptr<Node> variance = nodes.front();
         nodes.pop_front();
         shared_ptr<Node> mean = nodes.front();
         nodes.pop_front();
@@ -409,7 +409,7 @@ public:
         batch_norm->SetTags(rule->GetResolvedTags());
         input_layer->AddTopConnection(batch_norm);
         batch_norm->AddBottomConnection(input_layer);
-        batch_norm->AddAttribute(NodeAttribute::InvStdDev, inv_std_dev->GetCntkHeadNode());
+        batch_norm->AddAttribute(NodeAttribute::Variance, variance->GetCntkHeadNode());
         batch_norm->AddAttribute(NodeAttribute::Mean, mean->GetCntkHeadNode());
         batch_norm->AddAttribute(NodeAttribute::Bias, bias->GetCntkHeadNode());
         batch_norm->AddAttribute(NodeAttribute::Scale, scale->GetCntkHeadNode());
