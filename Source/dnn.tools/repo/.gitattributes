@@ -1,1 +1,33 @@
-* text=auto
+# Git files
+.gitattributes text
+.gitignore text
+
+# Textual files (ReadMe etc.)
+*.md text
+*.txt text
+
+# Linux project files
+Makefile text
+
+# Windows project files
+*.sln text
+*.vcxproj text
+*.filters text
+*.pssproj text
+
+# Compiled source files
+*.c text
+*.cpp text
+*.h text
+*.hpp text
+*.proto text
+
+# Script source files
+*.ps1 text
+*.cmd text
+
+# Config files (Nuget)
+*.config text
+
+# Example files (Example configs)
+*.example text
