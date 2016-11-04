@@ -154,20 +154,34 @@ DATASET_LIB_OBJS := $(DATASET_LIB_PROTO_OBJS) $(DATASET_LIB_CXX_OBJS)
 DATASET_LIB_LIB_NAME := lib$(DATASET_LIB_NAME).a
 DATASET_LIB_LIB := $(DATASET_LIB_BUILD_DIR)/$(DATASET_LIB_LIB_NAME)
 
+# If we are provided with custom protbuf path ensure we use correct proto compiler and cc includes.
+ifdef DNNTOOLS_PROTOBUF_PATH
+PROTO_COMPILER = $(DNNTOOLS_PROTOBUF_PATH)/bin/protoc
+PROTO_CC_INCLUDES = -I$(DNNTOOLS_PROTOBUF_PATH)/include
+else
+# Just use system installation
+PROTO_COMPILER = protoc
+PROTO_CC_INCLUDES = 
+endif
+
 $(DATASET_LIB_SRC_DIR)/proto/%.pb.cc: $(DATASET_LIB_SRC_DIR)/proto/%.proto
-	@echo @protoc --proto_path=$(DATASET_LIB_SRC_DIR)/proto --cpp_out=$(DATASET_LIB_SRC_DIR)/proto $<
-	@protoc --proto_path=$(DATASET_LIB_SRC_DIR)/proto --cpp_out=$(DATASET_LIB_SRC_DIR)/proto $<
+	@echo @$(PROTO_COMPILER) --proto_path=$(DATASET_LIB_SRC_DIR)/proto --cpp_out=$(DATASET_LIB_SRC_DIR)/proto $<
+	@$(PROTO_COMPILER) --proto_path=$(DATASET_LIB_SRC_DIR)/proto --cpp_out=$(DATASET_LIB_SRC_DIR)/proto $<
 
 DATASET_LIB_INCLUDES := $(COMMON_COMMON_STANDALONE_SRC_DIR) $(DATASET_LIB_SRC_DIR)/proto $(COMMON_PLATFORM_SRC_DIR) $(COMMON_PROTOBUF_WRAPPER_SRC_DIR)
 ifdef DNNTOOLS_OPENCV_PATH
 # External caller may force certain version of openCV. Use this version if DNNTOOLS_OPENCV_PATH is provided.
 DATASET_LIB_INCLUDES += $(DNNTOOLS_OPENCV_PATH)/include
 endif
+ifdef DNNTOOLS_PROTOBUF_PATH
+# External caller may force certain version of protobuf. Use this version if DNNTOOLS_PROTOBUF_PATH is provided.
+DATASET_LIB_INCLUDES += $(DNNTOOLS_PROTOBUF_PATH)/include
+endif
 DATASET_LIB_INCLUDES_FINAL := $(foreach includedir,$(DATASET_LIB_INCLUDES), -I$(includedir))
 
 $(DATASET_LIB_BUILD_DIR)/proto/%.pb.o: $(DATASET_LIB_SRC_DIR)/proto/%.pb.cc
-	@echo $(CXX) $< $(CXXFLAGS) -c -o  $@
-	@$(CXX) $< $(CXXFLAGS) -c -o  $@
+	@echo $(CXX) $< $(CXXFLAGS) $(PROTO_CC_INCLUDES) -c -o  $@
+	@$(CXX) $< $(CXXFLAGS) $(PROTO_CC_INCLUDES) -c -o  $@
 
 $(DATASET_LIB_BUILD_DIR)/%.o: $(DATASET_LIB_SRC_DIR)/%.cpp
 	@echo $(CXX) $< $(CXXFLAGS) $(DATASET_LIB_INCLUDES_FINAL) -c -o  $@
