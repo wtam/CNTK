@@ -12,235 +12,264 @@
 #include "ReaderShim.h"
 #include "Function.h"
 #include <tuple>
-#include "ComputationNetworkBuilder.h"
+#include "Value.h"
 
 using namespace Microsoft::MSR::CNTK;
 
 namespace CNTK
 {
-    MinibatchSourcePtr CreateCompositeMinibatchSource(const Dictionary& configuration)
+    const std::unordered_map<StreamInformation, MinibatchData>& MinibatchSource::GetNextMinibatch(size_t minibatchSizeInSamples, const DeviceDescriptor& device /*= DeviceDescriptor::UseDefaultDevice()*/)
     {
-        return MinibatchSourcePtr(new CompositeMinibatchSource(configuration));
+        return GetNextMinibatch(0, minibatchSizeInSamples, device);
     }
 
-    CompositeMinibatchSource::CompositeMinibatchSource(const Dictionary& configuration)
-        : m_epochEndReached(false), m_prevMinibatchSize(0), m_epochSize(SIZE_MAX)
+    const StreamInformation& MinibatchSource::StreamInfo(const std::wstring& streamName)
     {
+        std::unordered_set<const StreamInformation*> matchingStreamInfos;
+        auto& allStreamInfos = StreamInfos();
+        for (auto& streamInfo : allStreamInfos)
+        {
+            if (streamInfo.m_name == streamName)
+                matchingStreamInfos.insert(&streamInfo);
+        }
+
+        if (matchingStreamInfos.empty())
+            RuntimeError("No stream found matching given name");
+
+        if (matchingStreamInfos.size() > 1)
+            RuntimeError("Multiple streams found matching given name");
+
+        return *(*(matchingStreamInfos.begin()));
+    }
+
+    const StreamInformation& MinibatchSource::StreamInfo(const Variable& variableToMatch)
+    {
+        std::unordered_set<const StreamInformation*> matchingStreamInfos;
+        auto& allStreamInfos = StreamInfos();
+        for (auto& streamInfo : allStreamInfos)
+        {
+            bool streamHasSparseData = (streamInfo.m_storageFormat != StorageFormat::Dense);
+            if ((streamInfo.m_elementType == variableToMatch.GetDataType()) && (streamInfo.m_sampleLayout == variableToMatch.Shape()) && (streamHasSparseData == variableToMatch.IsSparse()))
+                matchingStreamInfos.insert(&streamInfo);
+        }
+
+        if (matchingStreamInfos.empty())
+            RuntimeError("No stream found matching given Variable's attributes");
+
+        if (matchingStreamInfos.size() > 1)
+            RuntimeError("Multiple streams found matching given Variable's attributes");
+
+        return *(*(matchingStreamInfos.begin()));
+    }
+
+    MinibatchSourcePtr CreateCompositeMinibatchSource(const Dictionary& configuration, DistributedCommunicatorPtr communicator)
+    {
+        return MinibatchSourcePtr(new CompositeMinibatchSource(configuration, communicator));
+    }
+
+    /*static*/ const std::wstring CompositeMinibatchSource::MinibatchSourcePositionAttributeName = L"minibatchSourcePosition";
+
+    CompositeMinibatchSource::CompositeMinibatchSource(const Dictionary& configuration, DistributedCommunicatorPtr communicator)
+        : m_epochEndReached(false), m_prevMinibatchSize(0), m_epochSize(MinibatchSource::InfinitelyRepeat), m_truncationLength(0), m_communicator(communicator)
+    {
+        // The CNTK reader implementation requires for each deserializer both the module and deserializer type be specified
+        // This is redundant and the V2 API users will just specify type from which the module is automatically inferred
+        // TODO: This should be done in the same manner for CNTK exe as well.
+        Dictionary augmentedConfiguration = configuration;
+        auto& deserializerConfigurations = augmentedConfiguration[L"deserializers"].Value<std::vector<DictionaryValue>>();
+        for (auto& deserializerConfig : deserializerConfigurations)
+        {
+            static const std::unordered_map<std::wstring, std::wstring> deserializerTypeNameToModuleNameMap = {
+                { L"CNTKTextFormatDeserializer", L"CNTKTextFormatReader" },
+                { L"ImageDeserializer",          L"ImageReader"          },
+                { L"HTKFeatureDeserializer",     L"HTKDeserializers"     },
+                { L"HTKMLFDeserializer",         L"HTKDeserializers"     },
+            };
+
+            auto& deserializerConfigDict = deserializerConfig.Value<Dictionary>();
+            auto deserializerTypeName = deserializerConfigDict[L"type"].Value<std::wstring>();
+            if (deserializerTypeName == L"ImageDeserializer")
+            {
+                // Add a transpose transform since the image data in read in HWC (CWH in column major format) form while 
+                // the CNTK convolution engive supports WHC (in column-major format)
+                auto& inputStreamsConfig = deserializerConfigDict[L"input"].Value<Dictionary>();
+                auto& streamsMap = *(inputStreamsConfig.m_dictionaryData);
+                for (auto& inputStreamEntry : streamsMap)
+                {
+                    auto& inputStreamConfig = inputStreamEntry.second.Value<Dictionary>();
+                    if (inputStreamConfig.Contains(L"transforms"))
+                    {
+                        auto& transforms = inputStreamConfig[L"transforms"].Value<std::vector<DictionaryValue>>();
+
+                        // Add the transpose transform
+                        Dictionary transposeTransform;
+                        transposeTransform[L"type"] = L"Transpose";
+                        transforms.push_back(transposeTransform);
+                    }
+                }
+
+            }
+
+            if (deserializerTypeNameToModuleNameMap.find(deserializerTypeName) == deserializerTypeNameToModuleNameMap.end())
+                InvalidArgument("Unknown deserializer type (%S)", deserializerTypeName.c_str());
+
+            deserializerConfigDict[L"module"] = deserializerTypeNameToModuleNameMap.at(deserializerTypeName);
+        }
+
         ConfigParameters config;
         std::wstringstream s;
-        for (const auto& keyValuePair : *(configuration.m_dictionaryData))
+        for (const auto& keyValuePair : *(augmentedConfiguration.m_dictionaryData))
             AddConfigString(s, keyValuePair.first, keyValuePair.second, 0);
 
         config.Parse(msra::strfun::utf8(s.str()));
 
         const wchar_t* epochSizeConfigurationKey = L"epochSize";
-        if (configuration.Contains(epochSizeConfigurationKey))
-            m_epochSize = configuration[epochSizeConfigurationKey].GetValue<size_t>();
+        if (augmentedConfiguration.Contains(epochSizeConfigurationKey))
+            m_epochSize = augmentedConfiguration[epochSizeConfigurationKey].Value<size_t>();
 
-        if (m_epochSize == 0)
+        if (m_epochSize == MinibatchSource::FullDataSweep)
             m_epochSize = Microsoft::MSR::CNTK::requestDataSize;
+
+        const wchar_t* truncatedConfigurationKey = L"truncated";
+        const wchar_t* truncationLengthConfigurationKey = L"truncationLength";
+        if (augmentedConfiguration.Contains(truncatedConfigurationKey) &&
+            augmentedConfiguration[truncatedConfigurationKey].Value<bool>() &&
+            augmentedConfiguration.Contains(truncationLengthConfigurationKey))
+        {
+            m_truncationLength = augmentedConfiguration[truncationLengthConfigurationKey].Value<size_t>();
+        }
 
         typedef Reader*(*CreateCompositeDataReaderProc)(const ConfigParameters* parameters);
         CreateCompositeDataReaderProc createReaderProc = (CreateCompositeDataReaderProc)Plugin().Load(L"CompositeDataReader", "CreateCompositeDataReader");
-        m_compositeDataReader.reset(createReaderProc(&config));
+        std::shared_ptr<Microsoft::MSR::CNTK::Reader> compositeDataReader(createReaderProc(&config));
 
-        auto compositeDataReaderStreamDescs = m_compositeDataReader->GetStreamDescriptions();
-        for (auto streamDesc : compositeDataReaderStreamDescs)
+        m_compositeDataReaderStreamDescs = compositeDataReader->GetStreamDescriptions();
+        for (auto streamDesc : m_compositeDataReaderStreamDescs)
             m_streamInfos.insert({ streamDesc->m_name, streamDesc->m_id, AsStorageFormat(streamDesc->m_storageType), AsDataType(streamDesc->m_elementType), AsNDShape(*(streamDesc->m_sampleLayout)) });
+
+        m_shim = std::shared_ptr<ReaderShim<float>>(new ReaderShim<float>(compositeDataReader), [](ReaderShim<float>* x) { x->Destroy(); });
+        m_shim->Init(config);
     }
 
-    /*virtual*/ std::unordered_map<StreamInfo, MinibatchData> CompositeMinibatchSource::GetNextMinibatch(const std::unordered_map<StreamInfo, std::pair<size_t, size_t>>& perStreamMBSizeLimits,
-                                                                                                         const DeviceDescriptor& device /*= DeviceDescriptor::DefaultDevice()*/) /*override*/
+    /*virtual*/ const std::unordered_map<StreamInformation, MinibatchData>&
+    CompositeMinibatchSource::GetNextMinibatch(size_t minibatchSizeInSequences,
+                                               size_t minibatchSizeInSamples,
+                                               const DeviceDescriptor& device /*= DeviceDescriptor::UseDefaultDevice()*/) /*override*/
     {
-        std::unordered_map<StreamInfo, MinibatchData> minibatchData;
+        m_minibatchData.clear();
+
         if (!m_epochEndReached)
         {
-            // TODO: Support different minibatch sizes for different streams
-            size_t requestedMinibatchSizeInSamples = 0;
-            for (const auto& val : perStreamMBSizeLimits)
-            {
-                size_t maxNumSequencesRequested = val.second.first;
-                size_t maxNumSamplesRequested = val.second.second;
+            if (minibatchSizeInSequences != 0)
+                LogicError("Specifying minibatch size in #sequences is currently unsupported");
 
-                // TODO: Specifying minibatch size in #sequences is currently unsupported
-                if (maxNumSequencesRequested != 0)
-                    LogicError("Specifying minibatch size in #sequences is currently unsupported");
-
-                if (requestedMinibatchSizeInSamples == 0)
-                    requestedMinibatchSizeInSamples = maxNumSamplesRequested;
-                else
-                {
-                    if (requestedMinibatchSizeInSamples != maxNumSamplesRequested)
-                        LogicError("Different minibatch sizes across different input streams is currently unsupported!");
-                }
-            }
-
-            if (requestedMinibatchSizeInSamples == 0)
+            if (minibatchSizeInSamples == 0)
                 InvalidArgument("GetNextMinibatch: Requested minibatch sizes must be > 0");
 
             if (m_prevMinibatchSize == 0)
             {
-                // TODO: Add support for distributed reading
-                EpochConfiguration epochConfig = { 1, 0, requestedMinibatchSizeInSamples, m_epochSize, 0, 0 };
-                m_compositeDataReader->StartEpoch(epochConfig);
-                m_prevMinibatchSize = requestedMinibatchSizeInSamples;
+                EpochConfiguration epochConfig;
+                epochConfig.m_numberOfWorkers = m_communicator ? m_communicator->Workers().size() : 1;
+                epochConfig.m_workerRank = m_communicator ? m_communicator->CurrentWorker().m_globalRank : 0;
+                epochConfig.m_minibatchSizeInSamples = minibatchSizeInSamples;
+                epochConfig.m_truncationSize = m_truncationLength;
+
+                epochConfig.m_totalEpochSizeInSamples = m_epochSize;
+                epochConfig.m_epochIndex = 0;
+                m_matrices.clear();
+
+                std::unordered_set<InputStreamDescription> inputs;
+                for (const auto& s : m_streamInfos)
+                {
+                    auto inputStreamDescription = GetInputStreamDescription(s, device);
+                    inputs.insert(inputStreamDescription);
+
+                    if (s.m_elementType == DataType::Float)
+                    {
+                        auto iter = std::find_if(m_compositeDataReaderStreamDescs.begin(), m_compositeDataReaderStreamDescs.end(), [s](StreamDescriptionPtr& streamInfo) {
+                            return streamInfo->m_id == s.m_id;
+                        });
+                        assert(iter != m_compositeDataReaderStreamDescs.end());
+
+                        m_matrices.AddInput(
+                            s.m_name,
+                            std::make_shared<Matrix<float>>(0, 0, inputStreamDescription.GetDeviceId(), inputStreamDescription.GetMatrixType(), inputStreamDescription.GetMatrixFormat()),
+                            std::make_shared<MBLayout>(),
+                            *(*iter)->m_sampleLayout);
+                    }
+                    else
+                        LogicError("Input data of type other than DataType::Float is currently unsupported by the CNTK built-in composite MinibatchSource!");
+                }
+
+                m_shim->StartEpoch(epochConfig, inputs);
+                m_prevMinibatchSize = minibatchSizeInSamples;
             }
 
-            if (requestedMinibatchSizeInSamples != m_prevMinibatchSize)
-                LogicError("GetNextMinibatch: Changing minibatch sizes across calls is currently unsupported");
-
-            auto compositeReaderMinibatchData = m_compositeDataReader->ReadMinibatch();
-            m_epochEndReached = compositeReaderMinibatchData.m_endOfEpoch;
-
-            auto compositeDataReaderStreamDescs = m_compositeDataReader->GetStreamDescriptions();
-            size_t numStreams = compositeDataReaderStreamDescs.size();
-            for (size_t i = 0; i < numStreams; ++i)
+            if (minibatchSizeInSamples != m_prevMinibatchSize)
             {
-                auto currentStreamDesc = compositeDataReaderStreamDescs[i];
-                auto iter = std::find_if(perStreamMBSizeLimits.begin(), perStreamMBSizeLimits.end(), [currentStreamDesc](const std::pair<StreamInfo, std::pair<size_t, size_t>>& entry) {
-                    return entry.first.m_id == currentStreamDesc->m_id;
-                });
+                std::map<std::wstring, int> inputDescriptions;
+                for (const auto& s : m_streamInfos)
+                    inputDescriptions[s.m_name] = AsCNTKImplDeviceId(device);
 
-                if (iter == perStreamMBSizeLimits.end())
-                    continue;
+                ReaderConfiguration newConfig;
+                newConfig.m_numberOfWorkers = m_communicator ? m_communicator->Workers().size() : 1;
+                newConfig.m_workerRank = m_communicator ? m_communicator->CurrentWorker().m_globalRank : 0;
+                newConfig.m_minibatchSizeInSamples = minibatchSizeInSamples;
+                newConfig.m_truncationSize = m_truncationLength;
 
-                auto& currentStreamInfo = iter->first;
-                auto sampleShape = AsNDShape(*(currentStreamDesc->m_sampleLayout));
+                m_shim->SetConfiguration(newConfig, inputDescriptions);
+                m_prevMinibatchSize = minibatchSizeInSamples;
+            }
+
+            auto compositeReaderMinibatchDataEmpty = m_shim->GetMinibatch(m_matrices);
+            m_epochEndReached = m_shim->IsEndOfEpoch();
+
+            for (const auto& s: m_streamInfos)
+            {
+                auto input = m_matrices.GetInput(s.m_name);
+                auto& currentStreamInfo = s;
 
                 ValuePtr minibatchValuePtr;
-                if (compositeReaderMinibatchData.m_data.empty())
+                if (!compositeReaderMinibatchDataEmpty)
                 {
-                    minibatchValuePtr = MakeSharedObject<Value>(MakeSharedObject<NDArrayView>(currentStreamInfo.m_elementType, sampleShape.AppendShape({ 0, 0 }), DeviceDescriptor::CPUDevice()));
+                    minibatchValuePtr = MakeSharedObject<Value>(MakeSharedObject<NDArrayView>(currentStreamInfo.m_elementType, s.m_sampleLayout.AppendShape({ 0, 0 }), DeviceDescriptor::CPUDevice()));
                     continue;
                 }
 
-                auto currentStreamMinibatchData = compositeReaderMinibatchData.m_data[i];
-                if (currentStreamDesc->m_elementType == ElementType::tfloat)
+                if (s.m_elementType == DataType::Float)
                 {
-                    auto dataMatrix = std::make_shared<Matrix<float>>(CPUDEVICE);
-                    size_t sampleSize = currentStreamDesc->m_sampleLayout->GetNumElements();
+                    auto matrixType = (s.m_storageFormat == StorageFormat::Dense) ? DENSE : SPARSE;
+                    auto matrixFormat = (s.m_storageFormat == StorageFormat::Dense) ? matrixFormatDense : matrixFormatSparseCSC;
+                    // Can we reuse this, not allocating it each time?
+                    auto dataMatrix = std::make_shared<Matrix<float>>(0, 0, input.GetMatrix<float>().GetDeviceId(), matrixType, matrixFormat);
 
-                    // TODO: Eliminate the unnecessary CPU to CPU copy
-                    ReaderShim<float>::FillMatrixFromStream(currentStreamDesc->m_storageType, dataMatrix.get(), sampleSize, currentStreamMinibatchData);
-                    minibatchValuePtr = CompositeFunction::GetValueObjectFromCNTKImplMatrixAndMBLayout<float>(sampleShape, *dataMatrix, currentStreamMinibatchData->m_layout, false);
+                    std::swap(*dataMatrix, input.GetMatrix<float>());
+                    minibatchValuePtr = MakeSharedObject<PackedValue>(s.m_sampleLayout, dataMatrix, input.pMBLayout, /*readOnly =*/ false);
 
-                    size_t numSamples = currentStreamMinibatchData->m_layout->GetActualNumSamples();
-                    size_t numSequences = currentStreamMinibatchData->m_layout->GetNumSequences();
+                    size_t numSamples = input.pMBLayout->GetActualNumSamples();
+                    size_t numSequences = input.pMBLayout->GetNumSequences();
 
-                    minibatchData[currentStreamInfo] = { numSequences, numSamples, minibatchValuePtr };
+                    m_minibatchData[currentStreamInfo] = { numSequences, numSamples, minibatchValuePtr };
                 }
                 else
                     LogicError("Input data of type other than DataType::Float is currently unsupported by the CNTK built-in composite MinibatchSource!");
             }
         }
 
-        return minibatchData;
+        return m_minibatchData;
     }
 
-    void ComputeInputPerDimMeansAndInvStdDevs(const MinibatchSourcePtr& minibatchSource,
-                                              std::unordered_map<StreamInfo, std::pair<NDArrayViewPtr, NDArrayViewPtr>>& computedMeanAndInvStdDevs,
-                                              const DeviceDescriptor& device /*= DeviceDescriptor::CPUDevice()*/)
+    /*virtual*/ Dictionary CompositeMinibatchSource::GetCheckpointState() const /*override*/
     {
-        typedef std::shared_ptr<ComputationNode<float>> ComputationNodePtr;
-        const auto& minibatchSourceStreams = minibatchSource->StreamInfos();
+        Dictionary checkpointState;
+        checkpointState[MinibatchSourcePositionAttributeName] = m_shim->GetCurrentSamplePosition();
 
-        auto computationNetwork = std::make_shared<ComputationNetwork>(AsCNTKImplDeviceId(device));
-        ComputationNetworkBuilder<float> builder(*computationNetwork);
+        return checkpointState;
+    }
 
-        std::vector<ComputationNodeBasePtr> allInputNodes;
-        std::unordered_map<StreamInfo, ComputationNodeBasePtr> streamToInputNodeMap;
-        std::unordered_map<StreamInfo, Variable> streamToDummyInputVariableMap;
-        std::unordered_map<StreamInfo, ComputationNodeBasePtr> streamToMeanNodeMap;
-        std::unordered_map<StreamInfo, ComputationNodeBasePtr> streamToInvStdDevNodeMap;
-
-        size_t totalSizePerSample = 0;
-        for (auto& currentStreamKV : computedMeanAndInvStdDevs)
-        {
-            auto currentStreamInfo = currentStreamKV.first;
-            if (minibatchSourceStreams.find(currentStreamInfo) == minibatchSourceStreams.end())
-                InvalidArgument("ComputeMeanAndVariance: Stream for which mean and variance is to be computed is not supported by the specified minibatchSource");
-
-            if (currentStreamInfo.m_elementType != DataType::Float)
-                LogicError("Input data of type other than DataType::Float is currently unsupported by the CNTK built-in composite MinibatchSource!");
-
-            auto inputVariableShape = currentStreamInfo.m_sampleLayout;
-            auto inputTensorShape = AsTensorShape(inputVariableShape);
-            totalSizePerSample += (inputVariableShape.TotalSize() * sizeof(float));
-
-            ComputationNodePtr inputNode;
-            Variable inputVariable;
-            if (currentStreamInfo.m_storageFormat != StorageFormat::Dense)
-            {
-                inputNode = builder.CreateSparseInputNode(currentStreamInfo.m_name, inputTensorShape);
-                inputVariable = Variable(inputVariableShape, true, DataType::Float, currentStreamInfo.m_name);
-            }
-            else
-            {
-                inputNode = builder.CreateInputNode(currentStreamInfo.m_name, inputTensorShape);
-                inputVariable = Variable(inputVariableShape, DataType::Float, currentStreamInfo.m_name);
-            }
-
-            allInputNodes.push_back(inputNode);
-            streamToInputNodeMap[currentStreamInfo] = inputNode;
-            streamToDummyInputVariableMap[currentStreamInfo] = inputVariable;
-            streamToMeanNodeMap[currentStreamInfo] = builder.Mean(inputNode);
-            streamToInvStdDevNodeMap[currentStreamInfo] = builder.InvStdDev(inputNode);
-        }
-
-        computationNetwork->CompileNetwork();
-        computationNetwork->AllocateAllMatrices(computationNetwork->RootNodes(), {}, nullptr);
-
-        ScopedNetworkOperationMode modeGuard(computationNetwork, NetworkOperationMode::preComputing);
-
-        // initialize
-        auto preComputeNodes = computationNetwork->GetNodesRequiringPreComputation();
-        for (auto & preComputeNode : preComputeNodes)
-            dynamic_pointer_cast<IPreComputeNode>(preComputeNode)->MarkComputed(false /*begin accumulating*/);
-
-        const size_t maxMinibatchDataSize = (1 << 27); // 128 MB
-        const size_t minibatchSize = maxMinibatchDataSize / totalSizePerSample;
-        std::unordered_map<StreamInfo, std::pair<size_t, size_t>> minibatchSizeLimits;
-        for (auto& currentStreamKV : computedMeanAndInvStdDevs)
-            minibatchSizeLimits.insert(std::make_pair(currentStreamKV.first, std::make_pair((size_t)0, minibatchSize)));
-
-        for (;;)
-        {
-            auto minibatchData = minibatchSource->GetNextMinibatch(minibatchSizeLimits, device);
-            if (minibatchData.empty())
-                break;
-
-            for (auto& currentStreamKV : computedMeanAndInvStdDevs)
-                CompositeFunction::PopulateComputationNodeValue<float>({ streamToDummyInputVariableMap[currentStreamKV.first], minibatchData[currentStreamKV.first].m_data }, streamToInputNodeMap[currentStreamKV.first]);
-
-            ComputationNetwork::BumpEvalTimeStamp(allInputNodes);
-
-            computationNetwork->ForwardProp(preComputeNodes);
-        }
-
-        // finalize
-        for (auto & preComputeNode : preComputeNodes)
-            dynamic_pointer_cast<IPreComputeNode>(preComputeNode)->MarkComputed(true /*done accumulating*/);
-
-        // Copy out the results
-        for (auto& currentStreamKV : computedMeanAndInvStdDevs)
-        {
-            ValuePtr mean, invStdDev;
-            if (computedMeanAndInvStdDevs[currentStreamKV.first].first != nullptr)
-                mean = MakeSharedObject<Value>(computedMeanAndInvStdDevs[currentStreamKV.first].first);
-
-            if (computedMeanAndInvStdDevs[currentStreamKV.first].second != nullptr)
-                invStdDev = MakeSharedObject<Value>(computedMeanAndInvStdDevs[currentStreamKV.first].second);
-
-            CompositeFunction::GetNodeOutputOrGradient(streamToDummyInputVariableMap[currentStreamKV.first], mean, streamToMeanNodeMap[currentStreamKV.first], false /*getGradient*/);
-            CompositeFunction::GetNodeOutputOrGradient(streamToDummyInputVariableMap[currentStreamKV.first], invStdDev, streamToInvStdDevNodeMap[currentStreamKV.first], false /*getGradient*/);
-
-            if (computedMeanAndInvStdDevs[currentStreamKV.first].first == nullptr)
-                computedMeanAndInvStdDevs[currentStreamKV.first].first = mean->Data();
-
-            if (computedMeanAndInvStdDevs[currentStreamKV.first].second == nullptr)
-                computedMeanAndInvStdDevs[currentStreamKV.first].second = invStdDev->Data();
-
-        }
+    /*virtual*/ void CompositeMinibatchSource::RestoreFromCheckpoint(const Dictionary& checkpoint) /*override*/
+    {
+        auto checkpointedMinibatchSourcePosition = checkpoint[MinibatchSourcePositionAttributeName].Value<size_t>();
+        m_shim->SetCurrentSamplePosition(checkpointedMinibatchSourcePosition);
     }
 }
-

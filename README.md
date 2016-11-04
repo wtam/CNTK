@@ -1,21 +1,68 @@
-# CNTK
+# Latest news
+*2016-11-03.* V 2.0 Beta 2 Release  
+Highlights of this Release:
+* Feature tuning and bug fixing based on the feedback on Beta 1
+* Changes in the Examples and Tutorials based on the same feedback
+* New [Tutorial on Reinforcement Learning](https://github.com/Microsoft/CNTK/blob/master/bindings/python/tutorials/CNTK_203_Reinforcement_Learning_Basics.ipynb)
 
-## Latest news
-*2016-08-10.* CNTK now supports **Gated Recurrent Units (GRU)**. Read more in the [corresponding article](https://github.com/Microsoft/CNTK/wiki/GRUs-on-CNTK-with-BrainScript).
+See more in the [Release Notes](https://github.com/Microsoft/CNTK/wiki/CNTK_2_0_beta_2_Release_Notes)  
+Get the Release from the [CNTK Releases page](https://github.com/Microsoft/CNTK/releases)
 
-*2016-07-15.* V 1.6 Binary release  
-CNTK v.1.6 binaries are on the [CNTK Releases page](https://github.com/Microsoft/CNTK/releases)
+*2016-10-25.* New CNTK Name, new Web Site and V 2.0 Beta 1 Release  
 
-*2016-07-12.* We have further expanded Licensing options for CNTK 1bit-SGD and related components. See the details at the [Wiki page](https://github.com/microsoft/cntk/wiki/CNTK-1bit-SGD-License). These new options are an extension of the new CNTK 1bit-SGD License that we have announced on Jun 23, 2016.
+CNTK becomes **The Microsoft Cognitive Toolkit**. See more at our [new Web Site](https://www.microsoft.com/en-us/research/product/cognitive-toolkit/).
 
-*2016-07-05.* CNTK now supports *Deconvolution* and *Unpooling*. See the usage example in the Network number 4 in [MNIST Sample](https://github.com/Microsoft/CNTK/blob/master/Examples/Image/MNIST/README.md).
+With the today's Release we start delivering CNTK V2 - a major upgrade of Microsoft Cognitive Toolkit.
 
-*2016-06-23.* New License Terms for CNTK 1bit-SGD and related components.  
-Effective immediately the License Terms for CNTK 1bit-SGD and related components have changed. The new Terms provide more flexibility and enable new usage scenarios, especially in commercial environments. Read the new Terms at the [standard location](https://cntk1bitsgd.codeplex.com/license). Please note, that while the new Terms are significantly more flexible comparing to the previous ones, they are still **more restrictive** than the main CNTK License. Consequently everything described in [Enabling 1bit-SGD](https://github.com/Microsoft/CNTK/wiki/Enabling-1bit-SGD) section of the Wiki remains valid.
+Expect a set of Beta Releases in the Coming Weeks.
+
+Highlights of this Release:
+* CNTK can now be used as a library with [brand new C++ and Python APIs](https://github.com/microsoft/cntk/wiki/CNTK-Library-API)
+* New Python Examples and Tutorials
+* Support of Protocol Buffers serialization
+* Support of Fast R-CNN algorithm
+* New automated installation procedures
+* Improvements in CNTK Evaluation library including support of CNTK APIs
+
+See more in the [Release Notes](https://github.com/Microsoft/CNTK/wiki/CNTK_2_0_beta_1_Release_Notes). You will find there links to the materials about the new features.  
+Get the Release from the [CNTK Releases page](https://github.com/Microsoft/CNTK/releases)
+
+*2016-10-03.* V 1.7.2 Binary release  
+**This is a Hot Fix Release. It affects all users of Model Evaluation Library**
+
+If you are NOT using Model Evaluation Library you may skip this release.  
+If you ARE using Model Evaluation Library we **strongly recommend** installing version 1.7.2 instead of **any** previous version you might be using.
+
+See [Release Notes](https://github.com/Microsoft/CNTk/wiki/CNTK_1_7_2_Release_Notes) for details.
+
+*2016-09-28.* V 1.7.1 Binary release  
+Highlights of this Release:
+* Two Breaking Changes related to Layers library default initialization and ```fsAdagrad``` gradient-normalization scheme
+* Improvements in BrainScript
+* Enabling of Deterministic Algorithm enforcement
+* Improvements in Model Evaluation including the support of Evaluation for Azure Applications
+* Different Performance improvements
+* Multiple bug fixes
+
+See more in the [Release Notes](https://github.com/Microsoft/CNTK/wiki/CNTK_1_7_1_Release_Notes) (including the full list of bugs fixed)  
+Get the Release from the [CNTK Releases page](https://github.com/Microsoft/CNTK/releases)
+
+*2016-08-31.* V 1.7 Binary release  
+Highlights of this Release:
+* Improvements in BrainScript (new library of predefined common layer types; common random-initialization types; GRUs)
+* Support of NVIDIA cuDNN 5.1 and cuDNN RNN
+* Improvements in readers and deserializers
+* Additions to Evaluator library (Eval Client Sample, strong name for EvalWrapper)
+* New unit tests incl. Linux support
+* Python API Preview (since V.1.5)
+* Multiple bug fixes
+
+See more in the [Release Notes](https://github.com/Microsoft/CNTK/wiki/CNTK_1_7_Release_Notes)  
+Get the Release from the [CNTK Releases page](https://github.com/Microsoft/CNTK/releases)
 
 See [all news](https://github.com/Microsoft/CNTK/wiki/News).
 
-## What is CNTK
+# What is CNTK
 CNTK (http://www.cntk.ai/), the Computational Network Toolkit by Microsoft Research, is a unified deep-learning toolkit that describes neural networks as a series of computational steps via a directed graph. In this directed graph, leaf nodes represent input values or network parameters, while other nodes represent matrix operations upon their inputs. CNTK allows to easily realize and combine popular model types such as feed-forward DNNs, convolutional nets (CNNs), and recurrent networks (RNNs/LSTMs). It implements stochastic gradient descent (SGD, error backpropagation) learning with automatic differentiation and parallelization across multiple GPUs and servers. CNTK has been available under an open-source license since April 2015. It is our hope that the community will take advantage of CNTK to share ideas more quickly through the exchange of open source working code.
 
 Wiki: Go to the [CNTK Wiki](https://github.com/Microsoft/CNTK/wiki) for all information on CNTK including [setup](https://github.com/Microsoft/CNTK/wiki/Setup-CNTK-on-your-machine ), [examples](https://github.com/Microsoft/CNTK/wiki/Examples ), etc.

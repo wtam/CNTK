@@ -42,8 +42,8 @@
 
 #define IDX2C(i, j, ld) (((j) * (ld)) + (i)) // 0 based indexing
 
-// CUDA atomicAdd() only exists for 'float'. This is the 'double' version.
-// TODO: This may need to be guarded by CUDA version; newer devices may support this.
+// On older GPUs, CUDA atomicAdd() only exists for 'float'. This is the 'double' version.
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 600
 static __inline__ __device__ double atomicAdd(double* address, double val)
 {
     unsigned long long int* address_as_ull = (unsigned long long int*) address;
@@ -55,6 +55,7 @@ static __inline__ __device__ double atomicAdd(double* address, double val)
     } while (assumed != old);
     return __longlong_as_double(old);
 }
+#endif
 
 // TODO: replace this with TensorOps.h LogAdd(). It differs in using ElemType throughout, while this one seems to use 'double' versions of exp() and log().
 // The 'k' in the name is to avoid naming conflicts with various versions of logadd() that are defined throughout the codebase.
@@ -134,18 +135,17 @@ struct GridDim
         assert(m_blocksPerGrid * m_threadsPerBlock >= N);
     }
 
-    static std::vector<cudaDeviceProp> CacheDeviceProps()
+    static const std::vector<cudaDeviceProp>& GetCachedDeviceProps()
     {
-        int numDevices;
-        CUDA_CALL(cudaGetDeviceCount(&numDevices));
-        std::vector<cudaDeviceProp> props(numDevices);
-        for (int i = 0; i < numDevices; i++)
-            CUDA_CALL(cudaGetDeviceProperties(&props[i], i));
-#if 0 // on Linux, maxGridSize[0] gets reported as 0
-        for (int i = 0; i < numDevices; i++)
-            fprintf(stderr, "%d procs  %d warps  %d %d %d max grid  on  %s\n", (int)props[i].multiProcessorCount, (int)props[i].warpSize, (int)props[i].maxGridSize[0], (int)props[i].maxGridSize[1], (int)props[i].maxGridSize[2], props[i].name);
-#endif
-        return props;
+        std::call_once(s_cachedDevicePropsInitFlag, [=]{
+            int numDevices;
+            CUDA_CALL(cudaGetDeviceCount(&numDevices));
+            s_cachedDeviceProps.resize(numDevices);
+            for (int i = 0; i < numDevices; i++)
+                CUDA_CALL(cudaGetDeviceProperties(&s_cachedDeviceProps[i], i));
+        });
+       
+        return s_cachedDeviceProps;
     }
 
     static size_t GetCurrentDeviceId()
@@ -155,11 +155,12 @@ struct GridDim
         return (size_t)deviceId;
     }
 
+
     // get device properties of current device
     static const cudaDeviceProp& GetDeviceProps()
     {
-        static std::vector<cudaDeviceProp> props = CacheDeviceProps(); // thread-safe according to C++ standard
-        return props[GetCurrentDeviceId()];
+        const auto& cachedDevicesProps = GetCachedDeviceProps();
+        return cachedDevicesProps[GetCurrentDeviceId()];
     }
 
     // compute our location on the grid
@@ -167,6 +168,11 @@ struct GridDim
     {
         return blockDim.x * blockIdx.x + threadIdx.x;
     }
+
+private: 
+    // TODO: drop call_once and co. and make cached devices a local static, once we're on VS2015.
+    static std::vector<cudaDeviceProp> s_cachedDeviceProps;
+    static std::once_flag s_cachedDevicePropsInitFlag;
 };
 
 #define CALCULATE_ELEMENTWISE_INDEX_OR_EXIT(id, N) \
