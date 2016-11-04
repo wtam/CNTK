@@ -79,11 +79,11 @@ vector<StreamDescriptor> ImageDatasetConfigHelper::GetStreamDescriptors(const Co
         newStreamDescriptor.name = stream.first;
         if (stream.second.find("ds_name") == stream.second.end())
         {
-            RuntimeError("No ds_name declared in stream %s.", stream.first);
+            RuntimeError("No ds_name declared in stream %s.", stream.first.c_str());
         }
         if (stream.second.find("type") == stream.second.end())
         {
-            RuntimeError("No type declared in stream %s.", stream.first);
+            RuntimeError("No type declared in stream %s.", stream.first.c_str());
         }
         newStreamDescriptor.datasetName = stream.second.find("ds_name")->second;
         string type = stream.second.find("type")->second;
@@ -97,7 +97,7 @@ vector<StreamDescriptor> ImageDatasetConfigHelper::GetStreamDescriptors(const Co
             newStreamDescriptor.datasetStorageType = StorageType::sparse_csc;
             if (stream.second.find("dimension") == stream.second.end())
             {
-                RuntimeError("No dimension declared for sparse stream %s.", stream.first);
+                RuntimeError("No dimension declared for sparse stream %s.", stream.first.c_str());
             }
             newStreamDescriptor.dimension = stream.second.find("dimension")->second;
 
