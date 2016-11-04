@@ -94,6 +94,14 @@ void DoEval(const ConfigParameters& config)
     {
         readerConfig.Insert("randomize", "None");
     }
+    if (MPIWrapper::GetInstance() != nullptr)
+    {
+        // If we have distributed reading add workers info to config to enable precise examples distribution across readers.
+        ConfigValue workersCountConfigValue(to_string(MPIWrapper::GetInstance()->NumNodesInUse()));
+        readerConfig.insert(make_pair<>("workersCount", workersCountConfigValue));
+        ConfigValue workersRankConfigValue(to_string(MPIWrapper::GetInstance()->CurrentNodeRank()));
+        readerConfig.insert(make_pair<>("workerRank", workersRankConfigValue));
+    }
 
     DataReader testDataReader(readerConfig);
     DoEvalBase<ElemType>(config, testDataReader);
