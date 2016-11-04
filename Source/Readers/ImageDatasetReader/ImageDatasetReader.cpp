@@ -106,6 +106,10 @@ private:
 struct DenseSequenceDataIds : public DenseSequenceData
 {
 public:
+    virtual const void* GetDataBuffer() override
+    {
+        return m_ownedData.data();
+    }
     vector<float> m_ownedData;
 };
 typedef shared_ptr<DenseSequenceDataIds> DenseSequenceDataIdsPtr;
@@ -114,6 +118,10 @@ typedef shared_ptr<DenseSequenceDataIds> DenseSequenceDataIdsPtr;
 struct SparseSequenceDataIds : public SparseSequenceData
 {
 public:
+    virtual const void* GetDataBuffer() override
+    {
+        return m_valuesMemory.data();
+    }
     vector<IndexType> m_indicesMemory;
     vector<float> m_valuesMemory;
 };
@@ -385,6 +393,39 @@ public:
         m_currEpochSampleCount = 0;
     }
 
+    // Sets current configuration.
+    virtual void SetConfiguration(const ReaderConfiguration& config) override
+    {
+        // Just check that nothing changed since StartEpoch was called.
+        if (config.m_numberOfWorkers != m_numberOfWorkers)
+        {
+            RuntimeError("Number of workers changed since StartEpoch %zd != %zd.", config.m_numberOfWorkers, m_numberOfWorkers);
+        }
+        if (config.m_workerRank != m_workerRank)
+        {
+            RuntimeError("Workers rank changed since StartEpoch %zd != %zd.", config.m_workerRank, m_workerRank);
+        }
+        if (config.m_minibatchSizeInSamples != m_minibatchSize)
+        {
+            RuntimeError("Minibatch size changed since StartEpoch %zd != %zd.", config.m_minibatchSizeInSamples, m_minibatchSize);
+        }
+    }
+
+    // Set current sample position
+    virtual void SetCurrentSamplePosition(size_t /*currentSamplePosition*/) override
+    {
+        // Not needed currently.
+        // TODO(VSO/OS/ANALOG_SL/#9698049): Investigate where/how this is used and implement missing logic.
+    }
+
+    // Returns current position in the global timeline. The returned value is in samples.
+    virtual size_t GetCurrentSamplePosition() override
+    {
+        // Not needed currently.
+        // TODO(VSO/OS/ANALOG_SL/#9698049): Investigate where/how this is used and implement missing logic.
+        return 0;
+    }
+
     virtual Sequences GetNextSequences(size_t totalSampleCount) override
     {
         // This method needs to return final (output) data in a form of set of sequences.
@@ -464,7 +505,6 @@ public:
                     // expected memory layout is the same (just shape notation is different).
                     m_example->SwapBlobData(streamDescriptor.datasetName, newSequenceDataDense->m_ownedData);
                     // Fill in the base class fields.
-                    newSequenceDataDense->m_data = newSequenceDataDense->m_ownedData.data();
                     newSequenceDataDense->m_id = ismpl;
                     newSequenceDataDense->m_numberOfSamples = 1;
                     newSequenceDataDense->m_chunk = nullptr;
@@ -494,7 +534,6 @@ public:
 
                         // We set all ignore output values to 1. Below we will set values to zero where output should be ignored.
                         newSequenceDataDenseIgnore->m_ownedData.assign(ignoreDims[0] * ignoreDims[1] * ignoreDims[2], 1);
-                        newSequenceDataDenseIgnore->m_data = newSequenceDataDenseIgnore->m_ownedData.data();
                         newSequenceDataDenseIgnore->m_id = ismpl;
                         newSequenceDataDenseIgnore->m_numberOfSamples = 1;
                         newSequenceDataDenseIgnore->m_chunk = nullptr;
@@ -530,7 +569,6 @@ public:
                     newSequenceDataSparse->m_totalNnzCount = static_cast<IndexType>(data.size());
                     // All the non-zero values are equal to 1.
                     newSequenceDataSparse->m_valuesMemory.resize(data.size(), 1.0f);
-                    newSequenceDataSparse->m_data = newSequenceDataSparse->m_valuesMemory.data();
                     // Now we need to convert indices contained in data.
                     newSequenceDataSparse->m_indicesMemory.resize(data.size());
                     size_t spatialSize = dims[0] * dims[1];
@@ -621,38 +659,19 @@ private:
 
 ImageDatasetReader::ImageDatasetReader(MemoryProviderPtr provider,
                                        const ConfigParameters& config)
-    : m_provider(provider)
 {
     // Create data source and connect it to the packer.
-    m_dataSource = make_shared<DataSource>(config);
+    m_sequenceEnumerator = make_shared<DataSource>(config);
 
     m_packer = make_shared<FramePacker>(
-        m_provider,
-        m_dataSource,
-        m_dataSource->GetOutputStreamDescriptions());
+        m_sequenceEnumerator,
+        m_sequenceEnumerator->GetStreamDescriptions());
 }
 
 vector<StreamDescriptionPtr> ImageDatasetReader::GetStreamDescriptions()
 {
     // Descriptions are saved in datasource, just forward the call.
-    return m_dataSource->GetOutputStreamDescriptions();
+    return m_sequenceEnumerator->GetStreamDescriptions();
 }
 
-void ImageDatasetReader::StartEpoch(const EpochConfiguration& config)
-{
-    if (config.m_totalEpochSizeInSamples == 0)
-    {
-        RuntimeError("Epoch size cannot be 0.");
-    }
-
-    // Inform child objects that new epoch started.
-    m_dataSource->StartEpoch(config);
-    m_packer->StartEpoch(config);
-}
-
-Minibatch ImageDatasetReader::ReadMinibatch()
-{
-    // Ask packer to provide data.
-    return m_packer->ReadMinibatch();
-}
 } } }
