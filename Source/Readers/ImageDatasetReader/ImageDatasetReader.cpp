@@ -181,6 +181,13 @@ public:
 
         unique_ptr<DatasetEventsSinkImpl> events_sink = make_unique<DatasetEventsSinkImpl>();
 
+        // mIoU workaround
+        m_epochOverride = false;
+        if (config.Exists(L"epochOverride"))
+        {
+            m_epochOverride = true;
+        }
+
         // Collect runtime params.
         vector<OverridableParam> runtimeParameters;
         m_workerRank = 0;
@@ -188,12 +195,22 @@ public:
         if (ImageDatasetConfigHelper::HasWorkerRank(config))
         {
             m_workerRank = ImageDatasetConfigHelper::GetWorkerRank(config);
-            runtimeParameters.push_back({ OverridableParamID::loader_index, to_string(m_workerRank) });
+            if (!m_epochOverride)
+            {
+                runtimeParameters.push_back({ OverridableParamID::loader_index, to_string(m_workerRank) });
+            }
+            // else: mIoU workaround: We want all readers to go through entire set, leave default value (this reader will think he is the only one
+            // and go through entire set). This enables correct mIoU reporting.
         }
         if (ImageDatasetConfigHelper::HasWorkersCount(config))
         {
             m_numberOfWorkers = ImageDatasetConfigHelper::GetWorkersCount(config);
-            runtimeParameters.push_back({ OverridableParamID::loaders_count, to_string(m_numberOfWorkers) });
+            if (!m_epochOverride)
+            {
+                runtimeParameters.push_back({ OverridableParamID::loaders_count, to_string(m_numberOfWorkers) });
+            }
+            // else: mIoU workaround: We want all readers to go through entire set, leave default value (this reader will think he is the only one
+            // and go through entire set). This enables correct mIoU reporting.
         }
         if (ImageDatasetConfigHelper::HasDatasetDir(config))
         {
@@ -350,8 +367,16 @@ public:
         }
         if (UseAllExamplesFromDatasetForEpoch(config))
         {
-            // We take all examples from dataset for one epoch.
-            m_epochSize = static_cast<size_t>(m_dsLoader->GetExamplesCount());
+            if (m_epochOverride)
+            {
+                // mIoU workaround: Here we want all readers to go through entire set.
+                m_epochSize = m_numberOfWorkers * static_cast<size_t>(m_dsLoader->GetExamplesCount());
+            }
+            else
+            {
+                // We take all examples from dataset for one epoch.
+                m_epochSize = static_cast<size_t>(m_dsLoader->GetExamplesCount());
+            }
         }
         else
         {
@@ -651,6 +676,10 @@ private:
 
     size_t m_epochSize;
     size_t m_currEpochSampleCount;
+
+    // mIoU workaround: Forces readers to go through entire epoch (enables correct mIoU reporting).
+    // TODO(VSO/OS/ANALOG_SL/#9673559): Remove workaround once proper mIoU reporting is implemented.
+    bool m_epochOverride;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
