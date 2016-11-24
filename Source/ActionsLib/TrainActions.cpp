@@ -51,13 +51,13 @@ using namespace Microsoft::MSR::CNTK;
 
 // function to create an object of a certain type, using both old CNTK config and BrainScript
 template <class C>
-shared_ptr<C> CreateObject(const ScriptableObjects::IConfigRecord& config, const wchar_t* id, bool /*addWorkersInfo*/, bool /*epochOverride*/)
+shared_ptr<C> CreateObject(const ScriptableObjects::IConfigRecord& config, const wchar_t* id, bool /*addWorkersInfo*/)
 {
     // TODO: CNTK config added "traceLevel = 0" to 'config'. In BS, we cannot do that (IConfigRecord is immutable). Solution: Just say "traceLevel = 0" in the BS macros for readers.
     return config[id].AsPtr<C>(); // BS instantiates this object through this call
 }
 template <class C>
-shared_ptr<C> CreateObject(const ConfigParameters& config, const wchar_t* id, bool addWorkersInfo, bool epochOverride)
+shared_ptr<C> CreateObject(const ConfigParameters& config, const wchar_t* id, bool addWorkersInfo)
 {
     ConfigParameters readerConfig(config(id));
     if (!readerConfig.ExistsCurrent("traceLevel")) // do not overwrite "traceLevel" if it's already present
@@ -71,13 +71,6 @@ shared_ptr<C> CreateObject(const ConfigParameters& config, const wchar_t* id, bo
         readerConfig.insert(make_pair<>("workersCount", workersCountConfigValue));
         ConfigValue workersRankConfigValue(to_string(MPIWrapper::GetInstance()->CurrentNodeRank()));
         readerConfig.insert(make_pair<>("workerRank", workersRankConfigValue));
-        if (epochOverride)
-        {
-            // Currently we want all readers to go through entire epoch (not just part of it) to enable correct mIoU reporting.
-            // TODO(VSO/OS/ANALOG_SL/#9673559): Remove workaround once proper mIoU reporting is implemented.
-            ConfigValue readerEpochOverrideConfigValue("epochOverride");
-            readerConfig.insert(make_pair<>("epochOverride", readerEpochOverrideConfigValue));
-        }
     }
     return make_shared<C>(readerConfig);                           // old CNTK config specifies a dictionary which then must be explicitly instantiated
 }
@@ -92,7 +85,7 @@ void DoTrain(const ConfigRecordType& config)
     shared_ptr<SGD<ElemType>> optimizer;
     if (config.Exists(L"optimizer"))
     {
-        optimizer = CreateObject<SGD<ElemType>>(config, L"optimizer", false, false);
+        optimizer = CreateObject<SGD<ElemType>>(config, L"optimizer", false);
     }
     else // legacy CNTK config syntax: needs a record called 'SGD'
     {
@@ -124,11 +117,11 @@ void DoTrain(const ConfigRecordType& config)
     // create or load from checkpoint
     shared_ptr<ComputationNetwork> net = !loadNetworkFromCheckpoint ? createNetworkFn(deviceId) : ComputationNetwork::CreateFromFile<ElemType>(deviceId, modelFileName);
 
-    auto dataReader = CreateObject<DataReader>(config, L"reader", true, false);
+    auto dataReader = CreateObject<DataReader>(config, L"reader", true);
 
     shared_ptr<DataReader> cvDataReader;
     if (config.Exists(L"cvReader"))
-        cvDataReader = CreateObject<DataReader>(config, L"cvReader", true, true);
+        cvDataReader = CreateObject<DataReader>(config, L"cvReader", true);
 
     optimizer->InitMPI(MPIWrapper::GetInstance());
     optimizer->Train(net, deviceId, dataReader.get(), cvDataReader.get(), startEpoch, loadNetworkFromCheckpoint);

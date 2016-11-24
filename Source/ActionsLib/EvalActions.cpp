@@ -101,10 +101,6 @@ void DoEval(const ConfigParameters& config)
         readerConfig.insert(make_pair<>("workersCount", workersCountConfigValue));
         ConfigValue workersRankConfigValue(to_string(MPIWrapper::GetInstance()->CurrentNodeRank()));
         readerConfig.insert(make_pair<>("workerRank", workersRankConfigValue));
-        // Currently we want all readers to go through entire epoch (not just part of it) to enable correct mIoU reporting.
-        // TODO(VSO/OS/ANALOG_SL/#9673559): Remove workaround once proper mIoU reporting is implemented.
-        ConfigValue readerEpochOverrideConfigValue("epochOverride");
-        readerConfig.insert(make_pair<>("epochOverride", readerEpochOverrideConfigValue));
     }
 
     DataReader testDataReader(readerConfig);
