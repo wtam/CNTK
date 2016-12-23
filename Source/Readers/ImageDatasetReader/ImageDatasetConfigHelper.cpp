@@ -48,6 +48,16 @@ string ImageDatasetConfigHelper::GetDatasetDir(const ConfigParameters& config)
   return config(L"datasetDir");
 }
 
+bool ImageDatasetConfigHelper::HasIdsFiles(const ConfigParameters& config)
+{
+  return config.Exists(L"idsFiles");
+}
+
+string ImageDatasetConfigHelper::GetIdsFiles(const ConfigParameters& config)
+{
+  return config(L"idsFiles");
+}
+
 bool ImageDatasetConfigHelper::HasWorkerRank(const ConfigParameters& config)
 {
   return config.Exists(L"workerRank");

@@ -53,6 +53,12 @@ public:
     // Returns specified dataset directory.
     static std::string GetDatasetDir(const ConfigParameters& config);
 
+    // Returns if ids files are specified.
+    static bool HasIdsFiles(const ConfigParameters& config);
+
+    // Returns specified ids files.
+    static std::string GetIdsFiles(const ConfigParameters& config);
+
     // Returns if workers rank is specified.
     static bool HasWorkerRank(const ConfigParameters& config);
 

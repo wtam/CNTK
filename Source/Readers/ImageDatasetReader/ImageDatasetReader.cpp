@@ -216,6 +216,21 @@ public:
         {
             runtimeParameters.push_back({ OverridableParamID::source_path, { ImageDatasetConfigHelper::GetDatasetDir(config) } });
         }
+        if (ImageDatasetConfigHelper::HasIdsFiles(config))
+        {
+            // We have list of ids files specified, take it.
+            string idsFiles = ImageDatasetConfigHelper::GetIdsFiles(config);
+            // List is expected to be '|' separated, perform parsing.
+            const char c_idsFileSeparator = '|';
+            vector<string> idsFilesVec;
+            stringstream idsFilesStream(idsFiles);
+            string idsFile;
+            while (getline(idsFilesStream, idsFile, c_idsFileSeparator))
+            {
+                idsFilesVec.emplace_back(idsFile);
+            }
+            runtimeParameters.push_back({ OverridableParamID::source_name, idsFilesVec });
+        }
 
         // Kick off loading the dataset.
         m_dsLoader = CreateLoader<float>(ImageDatasetConfigHelper::GetLoadConfigPath(config), &runtimeParameters, move(events_sink));
