@@ -197,7 +197,7 @@ public:
             m_workerRank = ImageDatasetConfigHelper::GetWorkerRank(config);
             if (!m_epochOverride)
             {
-                runtimeParameters.push_back({ OverridableParamID::loader_index, to_string(m_workerRank) });
+                runtimeParameters.push_back({ OverridableParamID::loader_index, { to_string(m_workerRank) } });
             }
             // else: mIoU workaround: We want all readers to go through entire set, leave default value (this reader will think he is the only one
             // and go through entire set). This enables correct mIoU reporting.
@@ -207,14 +207,14 @@ public:
             m_numberOfWorkers = ImageDatasetConfigHelper::GetWorkersCount(config);
             if (!m_epochOverride)
             {
-                runtimeParameters.push_back({ OverridableParamID::loaders_count, to_string(m_numberOfWorkers) });
+                runtimeParameters.push_back({ OverridableParamID::loaders_count, { to_string(m_numberOfWorkers) } });
             }
             // else: mIoU workaround: We want all readers to go through entire set, leave default value (this reader will think he is the only one
             // and go through entire set). This enables correct mIoU reporting.
         }
         if (ImageDatasetConfigHelper::HasDatasetDir(config))
         {
-            runtimeParameters.push_back({ OverridableParamID::source_path, ImageDatasetConfigHelper::GetDatasetDir(config) });
+            runtimeParameters.push_back({ OverridableParamID::source_path, { ImageDatasetConfigHelper::GetDatasetDir(config) } });
         }
 
         // Kick off loading the dataset.
