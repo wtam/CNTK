@@ -18,6 +18,7 @@ Makefile text
 *.vcxproj text
 *.filters text
 *.pssproj text
+*.targets text
 
 # Compiled source files
 *.c text
