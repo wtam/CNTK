@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{64DFEEB9-5A23-4681-817F-661B720D953E}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>caffe_model_editor</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="..\common_settings.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(NugetDir)\protoc_x64.2.6.1\build\native\protoc_x64.props" Condition="Exists('$(NugetDir)\protoc_x64.2.6.1\build\native\protoc_x64.props')" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <NuGetPackageImportStamp>0c91d16f</NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PreBuildEvent>
+      <Command>"$(BuildScriptsDir)\ProtoCompile.cmd" "$(CaffeRepositoryRoot)\src\caffe\proto" "caffe.proto" "$(ProtocDir)" "$(ProjectDir)proto" &amp;&amp; "$(BuildScriptsDir)\ProtoCompile.cmd" "$(ProjectDir)proto" "caffe_model_editor.proto" "$(ProtocDir)" "$(ProjectDir)proto"</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CommonDir)\cmd_line_parser;$(CommonDir)\protobuf_wrapper</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <PreBuildEvent>
+      <Command>"$(BuildScriptsDir)\ProtoCompile.cmd" "$(CaffeRepositoryRoot)\src\caffe\proto" "caffe.proto" "$(ProtocDir)" "$(ProjectDir)proto" &amp;&amp; "$(BuildScriptsDir)\ProtoCompile.cmd" "$(ProjectDir)proto" "caffe_model_editor.proto" "$(ProtocDir)" "$(ProjectDir)proto"</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CommonDir)\cmd_line_parser;$(CommonDir)\protobuf_wrapper</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="caffe_model_editor.cpp" />
+    <ClCompile Include="edit_caffe_model_scenario.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="proto\caffe.pb.cc">
+      <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="proto\caffe_model_editor.pb.cc">
+      <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="caffe.pb.hpp" />
+    <ClInclude Include="caffe_model_editor.hpp" />
+    <ClInclude Include="caffe_model_editor.pb.hpp" />
+    <ClInclude Include="edit_caffe_model_scenario.hpp" />
+    <ClInclude Include="proto\caffe.pb.h" />
+    <ClInclude Include="proto\caffe_model_editor.pb.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\common\cmd_line_parser\cmd_line_parser.vcxproj">
+      <Project>{a06dd5cb-e2a9-4927-bd8a-9cd5e9c666d8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\common\common_standalone\common_standalone.vcxproj">
+      <Project>{6fb55f21-657e-498d-8968-31f57d8c5425}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\common\platform\platform.vcxproj">
+      <Project>{4d5fbc80-637b-4d4b-ba69-d07c7771d818}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\common\protobuf_wrapper\protobuf_wrapper.vcxproj">
+      <Project>{13b0bc7f-f99a-421b-98e9-3c7370561f5a}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="proto\caffe_model_editor.proto" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(NugetDir)\boost_program_options-vc120.1.59.0.0\build\native\boost_program_options-vc120.targets" Condition="Exists('$(NugetDir)\boost_program_options-vc120.1.59.0.0\build\native\boost_program_options-vc120.targets')" />
+    <Import Project="$(NugetDir)\protobuf-v120.2.6.1\build\native\protobuf-v120.targets" Condition="Exists('$(NugetDir)\protobuf-v120.2.6.1\build\native\protobuf-v120.targets')" />
+  </ImportGroup>
+  <PropertyGroup>
+    <OriginalBuildDependsOn>$(BuildDependsOn)</OriginalBuildDependsOn>
+    <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
+  </PropertyGroup>
+  <Target Name="OriginalBuild" Condition="'$(BuildCaffeModelEditor)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
+  <Target Name="SkipBuild" Condition="'$(BuildCaffeModelEditor)'!='true'">
+    <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
+  </Target>
+</Project>

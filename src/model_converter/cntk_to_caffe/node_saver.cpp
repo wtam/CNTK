@@ -472,22 +472,14 @@ static void SetBatchNormLayerScaleParams(shared_ptr<Node> layer, caffe::LayerPar
     }
 }
 
-#ifdef CONVERT_CROP_NODE
 static void SetCropLayerParams(shared_ptr<Node> layer, caffe::LayerParameter& param)
 {
-    auto cntk_crop = dynamic_pointer_cast<cntk::CropNode<float>>(layer->GetCntkHeadNode());
-    CHECK(cntk_crop != nullptr);
+    // Even if CNTK offsets are specified manually, they may not be good for Caffe, so we
+    // serialize crop layer with automatic offset computation.
     param.set_type("Crop");
-    const int device_id = DeviceInfo::GetInstance().GetId();
-    auto wrapper = cntk::CropNodeWrapper<cntk::CropNode<float>>::CreateWrapper(device_id, *cntk_crop);
-    const int x_offset = wrapper->GetOffsetX();
-    const int y_offset = wrapper->GetOffsetY();
-
     caffe::CropParameter* crop_param = param.mutable_crop_param();
-    crop_param->add_offset(x_offset);
-    crop_param->add_offset(y_offset);
+    crop_param->set_auto_spatial_crop(true);
 }
-#endif
 
 static NodeTag GetLayerType(shared_ptr<Node> layer)
 {
@@ -496,9 +488,7 @@ static NodeTag GetLayerType(shared_ptr<Node> layer)
         NodeTag::AveragePooling,
         NodeTag::BatchNorm,
         NodeTag::Convolution,
-#ifdef CONVERT_CROP_NODE
         NodeTag::Crop,
-#endif
         NodeTag::Eltwise,
         NodeTag::InnerProduct,
         NodeTag::InputValue,
@@ -601,11 +591,9 @@ static void NodeToProto(
     case NodeTag::Convolution:
         SetConvolutionLayerParams(layer, *param, save_weights);
         break;
-#ifdef CONVERT_CROP_NODE
     case NodeTag::Crop:
         SetCropLayerParams(layer, *param);
         break;
-#endif
     case NodeTag::Eltwise:
         param->set_type("Eltwise");
         break;

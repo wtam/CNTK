@@ -105,6 +105,9 @@
     <ClInclude Include="dataset_load_runtime_overrides.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ignore_value_transformer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="channelwise_scale_shift_transformer.cpp">
@@ -168,6 +171,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="dataset_load_runtime_overrides.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ignore_value_transformer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

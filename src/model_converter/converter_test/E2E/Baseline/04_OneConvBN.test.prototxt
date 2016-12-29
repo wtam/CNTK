@@ -1,0 +1,137 @@
+# This file is Caffe configuration file that corresponds to Config/04_OneConvBN.cntk that is used in CNTK.
+# Layer names in these two files should be kept in sync.
+layer {
+  name: "_ol.x.x.x"
+  type: "Data"
+  top: "_ol.x.x.x"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "DataSets/MNIST/mnist_train_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "_ol.x.x.x"
+  type: "Data"
+  top: "_ol.x.x.x"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "DataSets/MNIST/mnist_test_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "ol.x.x.x._.x.c"
+  type: "Convolution"
+  bottom: "_ol.x.x.x"
+  top: "ol.x.x.x._.x.c"
+  convolution_param {
+    num_output: 16
+    bias_term: false
+    pad: 2
+    kernel_size: 5
+    stride: 1
+  }
+}
+layer {
+  name: "ol.x.x.x._"
+  type: "BatchNorm"
+  bottom: "ol.x.x.x._.x.c"
+  top: "ol.x.x.x._"
+}
+layer {
+  name: "ol.x.x.x._.Scale"
+  type: "Scale"
+  bottom: "ol.x.x.x._"
+  top: "ol.x.x.x._.Scale"
+  scale_param {
+    bias_term: true
+  }
+}
+layer {
+  name: "ol.x.x.x"
+  type: "ReLU"
+  bottom: "ol.x.x.x._.Scale"
+  top: "ol.x.x.x"
+}
+layer {
+  name: "ol.x.x"
+  type: "Pooling"
+  bottom: "ol.x.x.x"
+  top: "ol.x.x"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "ol.x._.x"
+  type: "InnerProduct"
+  bottom: "ol.x.x"
+  top: "ol.x._.x"
+  inner_product_param {
+    num_output: 64
+  }
+}
+layer {
+  name: "ol.x._"
+  type: "BatchNorm"
+  bottom: "ol.x._.x"
+  top: "ol.x._"
+}
+layer {
+  name: "ol.x._.Scale"
+  type: "Scale"
+  bottom: "ol.x._"
+  top: "ol.x._.Scale"
+  scale_param {
+    bias_term: true
+  }
+}
+layer {
+  name: "ol.x"
+  type: "ReLU"
+  bottom: "ol.x._.Scale"
+  top: "ol.x"
+}
+layer {
+  name: "ol"
+  type: "InnerProduct"
+  bottom: "ol.x"
+  top: "ol"
+  inner_product_param {
+    num_output: 10
+  }
+}
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "ol"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ol"
+  bottom: "label"
+  top: "loss"
+}

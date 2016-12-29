@@ -1,0 +1,40 @@
+layer {
+  name: "out.s1"
+  type: "Input"
+  top: "out.s1"
+  transform_param {
+    scale: 0.00390625
+  }
+  input_param {
+    shape {
+      dim: 1
+      dim: 28
+      dim: 28
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "out.h1._"
+  type: "InnerProduct"
+  bottom: "out.s1"
+  top: "out.h1._"
+  inner_product_param {
+    num_output: 200
+  }
+}
+layer {
+  name: "out.h1"
+  type: "ReLU"
+  bottom: "out.h1._"
+  top: "out.h1"
+}
+layer {
+  name: "out.z"
+  type: "InnerProduct"
+  bottom: "out.h1"
+  top: "out.z"
+  inner_product_param {
+    num_output: 10
+  }
+}

@@ -4,6 +4,7 @@
 #include "color_jitter_transformer.hpp"
 #include "crop_transformer.hpp"
 #include "horizontal_flip_transformer.hpp"
+#include "ignore_value_transformer.hpp"
 #include "mean_transformer.hpp"
 #include "minresize_transformer.hpp"
 #include "resize_crop_transformer.hpp"
@@ -62,7 +63,8 @@ unordered_map<string, TransformerFactory> transfomers_factory_map =
   MakeFactoryEntry<AlexNetColorTransformer, TransformerFactory>(),
   MakeFactoryEntry<ColorJitterTransformer, TransformerFactory>(),
   MakeFactoryEntry<ResizeCropTransformer, TransformerFactory>(),
-  MakeFactoryEntry<RotationTransformer, TransformerFactory>()
+  MakeFactoryEntry<RotationTransformer, TransformerFactory>(),
+  MakeFactoryEntry<IgnoreValueTransformer, TransformerFactory>()
 };
 
 unique_ptr<ITransformer> CreateTransformer(const TransformParameter& param)

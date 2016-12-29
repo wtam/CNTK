@@ -23,9 +23,15 @@
     <ClInclude Include="tag_filter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="log.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="check.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="log.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

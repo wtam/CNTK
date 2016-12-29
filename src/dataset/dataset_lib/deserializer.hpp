@@ -83,7 +83,7 @@ public:
 // Deserialization parameters.
 struct DeserializeParameters
 {
-  std::string ds_file_path;
+  std::vector<std::string> ds_files_paths;
   int64_t prefetch_size;
   DatasetEventsSink* events_sink;
   bool shuffle_chunks;

@@ -67,6 +67,13 @@ message HorizontalFlipParameters
   repeated bool flip_channel_values = 1;
 }
 
+message IgnoreValueParameters {
+  // Ignore label value.
+  required int32 ignore_label = 1;
+  // Value to ignore.
+  required float value = 2;
+}
+
 // Specifies one transform.
 message TransformParameter {
   // Describes type of the transform.
@@ -84,6 +91,7 @@ message TransformParameter {
   optional ColorJitterTransformParameters color_jitter_param = 105;
   optional ResizeCropTransformParameters resize_crop_param = 106;
   optional AlexNetColorTransformParameters alexnet_color_param = 107;
+  optional IgnoreValueParameters ignore_value_param = 108;
 }
 
 // Specifies one blob.
@@ -98,7 +106,7 @@ message BlobDescriptor {
 message DsLoadParameters{
   // Path to the dataset.
   required string source_path = 1;
-  required string source_name = 2;
+  repeated string source_name = 2;
   // Distributed reading params.
   optional uint32 loaders_count = 3 [default = 1];
   optional uint32 loader_index = 4 [default = 0];

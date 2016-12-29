@@ -1,0 +1,77 @@
+# This file is Caffe configuration file that corresponds to Config/01_OneHidden.cntk that is used in CNTK.
+# Layer names in these two files should be kept in sync.
+layer {
+  name: "out.s1"
+  type: "Data"
+  top: "out.s1"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "DataSets/MNIST/mnist_train_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "out.s1"
+  type: "Data"
+  top: "out.s1"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "DataSets/MNIST/mnist_test_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "out.h1._"
+  type: "InnerProduct"
+  bottom: "out.s1"
+  top: "out.h1._"
+  inner_product_param {
+    num_output: 200
+  }
+}
+layer {
+  name: "out.h1"
+  type: "ReLU"
+  bottom: "out.h1._"
+  top: "out.h1"
+}
+layer {
+  name: "out.z"
+  type: "InnerProduct"
+  bottom: "out.h1"
+  top: "out.z"
+  inner_product_param {
+    num_output: 10
+  }
+}
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "out.z"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "out.z"
+  bottom: "label"
+  top: "loss"
+}

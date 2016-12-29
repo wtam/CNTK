@@ -1,6 +1,7 @@
 #include "check.hpp"
 #include "platform.hpp"
 
+#include <exception>
 #include <iostream>
 #include <stdarg.h>
 
@@ -34,7 +35,7 @@ void Check(bool b, const char* filename, int line_number, const char* format, ..
     va_start(args, format);
     PrintErrorMessage(0, filename, line_number, format, args);
     va_end(args);
-    throw;
+    terminate();
   }
 }
 
@@ -49,6 +50,6 @@ void CheckErrno(bool b, const char* filename, int line_number, const char* forma
     va_start(args, format);
     PrintErrorMessage(errno_saved, filename, line_number, format, args);
     va_end(args);
-    throw;
+    terminate();
   }
 }

@@ -1,6 +1,155 @@
 ﻿# Include common functions.
 . (Join-Path -Path $PSScriptRoot -ChildPath "..\common\common.ps1")
 
+function Get-JenkinsBuildLog
+{
+    <#
+    .SYNOPSIS
+    Gets path to CSV file that contains CNTK Jenkins build IDs.
+    .DESCRIPTION
+    Gets path to CSV file that contains CNTK Jenkins build details: build name, build status, build id and build date.
+    #>
+    return "\\hohonu1\Drops\CNTK\Jenkins\builds.csv"
+}
+
+function Get-JenkinsBuildTag
+{
+    <#
+    .SYNOPSIS
+    Gets latest CNTK Jenkins build ID.
+    .DESCRIPTION
+    Gets latest CNTK Jenkins build ID from given (or predefined) log.
+    .PARAMETER OS
+    Operating system.
+    .PARAMETER BuildConfiguration
+    Build configuration.
+    .PARAMETER TargetConfiguration
+    Target configuration.
+    #>
+    [CmdLetBinding()]
+    Param(
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("Linux", "Windows")]
+        [string]$OS = "Linux",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("Debug", "Release")]
+        [string]$BuildConfiguration = "Release",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("1BitSGD", "GPU")]
+        [string]$TargetConfiguration = "1BitSGD"
+        )
+
+    $OsTag = $null
+    If ($OS -eq "Linux")
+    {
+        $OsTag = "L"
+    }
+    ElseIf ($OS -eq "Windows")
+    {
+        $OsTag = "W"
+    }
+    Else
+    {
+        Fail -Message "Unknown OS $OS"
+    }
+
+    $ConfigurationTag = $null
+    If ($BuildConfiguration -eq "Debug")
+    {
+        $ConfigurationTag = "D"
+    }
+    ElseIf ($BuildConfiguration -eq "Release")
+    {
+        $ConfigurationTag = "R"
+    }
+    Else
+    {
+        Fail -Message "Unknown build configuration $BuildConfiguration"
+    }
+
+    $TargetTag = $null
+    If ($TargetConfiguration -eq "1BitSGD")
+    {
+        $TargetTag = "1"
+    }
+    ElseIf ($TargetConfiguration -eq "GPU")
+    {
+        $TargetTag = "G"
+    }
+    Else
+    {
+        Fail -Message "Unknown target configuration $TargetTag"
+    }
+
+    return "B$OsTag$ConfigurationTag$TargetTag"
+}
+
+function Get-LKGJenkinsBuildId
+{
+    <#
+    .SYNOPSIS
+    Gets last known good CNTK Jenkins build id.
+    .DESCRIPTION
+    Gets last known good CNTK Jenkins build id.
+    .PARAMETER OS
+    Operating system.
+    .PARAMETER BuildConfiguration
+    Build configuration.
+    .PARAMETER TargetConfiguration
+    Target configuration.
+    .PARAMETER JenkinsBuildLog
+    Path to CSV file that contains CNTK Jenkins build details: build name, build status, build id and build date.
+    #>
+    [CmdLetBinding()]
+    Param(
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("Linux", "Windows")]
+        [string]$OS = "Linux",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("Debug", "Release")]
+        [string]$BuildConfiguration = "Release",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("1BitSGD", "GPU")]
+        [string]$TargetConfiguration = "1BitSGD",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [string]$JenkinsBuildLog
+    )
+    $BuildLog = Get-JenkinsBuildLog
+    If ($PSBoundParameters.ContainsKey("JenkinsBuildLog"))
+    {
+        # Use log from default path if log argument is not provided.
+        $BuildLog = $JenkinsBuildLog
+    }
+    Check `
+        -Condition (Test-Path $BuildLog) `
+        -Message "Build log $BuildLog not found!"
+
+    $BuildTag = Get-JenkinsBuildTag `
+                    -OS $OS `
+                    -BuildConfiguration $BuildConfiguration `
+                    -TargetConfiguration $TargetConfiguration
+    $Builds = Import-Csv $BuildLog
+    $Build = $Builds.Where{$_.Name -eq $BuildTag}
+    $ID = $null
+    If ($Build.Status -eq "SUCCESS")
+    {
+        $ID = $Build.ID
+    }
+    return $ID
+}
+
 function Get-JenkinsJobDetails
 {
     <#
@@ -140,6 +289,10 @@ function Submit-JenkinsJob
     Specifies which target to build CNTK for, GPU, CPU , 1BitSGD or combination of those.
     .PARAMETER TimeOut
     Specifies how long to wait for Jenkins to finish build job (in minutes). If 0, the script will just submit job to Jenkins and exit.
+    .PARAMETER User
+    Jenkins user name. If not specified, USERNAME environment variable will be used.
+    .PARAMETER Domain
+    Jenkins user domain. If not specified, USERDOMAIN environment variable will be used.
     #>
     [CmdletBinding()]
     Param (
@@ -177,10 +330,29 @@ function Submit-JenkinsJob
         [string]$TargetConfiguration = "GPU and CPU and 1BitSGD",
 
         [Parameter(Mandatory = $True)]
-        [int]$TimeOut = 0
+        [int]$TimeOut = 0,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [string]$User,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Domain
     )
 
-    $JenkinsUsername = $env:USERNAME + "@" + $env:USERDOMAIN.ToLower()
+    $userName = $env:USERNAME
+    If ($PSBoundParameters.ContainsKey("User"))
+    {
+        $userName = $User
+    }
+    $userDomain = $env:USERDOMAIN
+    If ($PSBoundParameters.ContainsKey("Domain"))
+    {
+        $userDomain = $Domain
+    }
+
+    $JenkinsUsername = $userName + "@" + $userDomain.ToLower()
     $JobNames = @{
         "Private" = "CNTK-Build-And-Test-Workflow-Private";
         "Public"  = "CNTK-Build-And-Test-Workflow"

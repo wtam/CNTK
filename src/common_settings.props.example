@@ -7,7 +7,6 @@
     <CommonDir>$(SolutionDir)common</CommonDir>
     <DsLibDir>$(SolutionDir)dataset\dataset_lib</DsLibDir>
     <CaffeRepositoryRoot></CaffeRepositoryRoot>
-    <CaffeInterfaceDir>$(CaffeRepositoryRoot)\include\caffe\util</CaffeInterfaceDir>
     <CntkRepositoryRoot></CntkRepositoryRoot>
     <!-- Macros that control building projects -->
     <BuildCommonCmdLineParser>true</BuildCommonCmdLineParser>
@@ -15,9 +14,12 @@
     <BuildCommonPlatform>true</BuildCommonPlatform>
     <BuildCommonProtobufWrapper>true</BuildCommonProtobufWrapper>
     <BuildCaffeDynLib>false</BuildCaffeDynLib>
+    <CaffexDnnxBuild>false</CaffexDnnxBuild>
     <BuildDatatsetLib>true</BuildDatatsetLib>
     <BuildDatatsetTool>true</BuildDatatsetTool>
     <BuildCntkToCaffe>false</BuildCntkToCaffe>
+    <!-- If BuildCaffeModelEditor is changed to true then CaffeRepositoryRoot must be set -->
+    <BuildCaffeModelEditor>false</BuildCaffeModelEditor>
   </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(BuildDir)\$(Platform)\$(Configuration)\</OutDir>

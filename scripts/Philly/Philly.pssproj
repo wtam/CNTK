@@ -6,14 +6,18 @@
     <ProjectGuid>6CAFC0C6-A428-4d30-A9F9-700E829FEA51</ProjectGuid>
     <Name>Philly</Name>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' "/>
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' "/>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' " />
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' " />
+  <Import Project="..\Scripts.props" />
   <ItemGroup>
     <Compile Include="example_get_job_list.ps1" />
     <Compile Include="example_get_job_status.ps1" />
     <Compile Include="example_submit_and_backup_job.ps1" />
     <Compile Include="example_submit_job.ps1" />
+    <Compile Include="example_submit_job_simple.ps1" />
+    <Compile Include="Get-PhillyPaths.ps1" />
     <Compile Include="parseLogs.ps1" />
     <Compile Include="shared.ps1" />
   </ItemGroup>
+  <Import Project="..\Scripts.targets" />
 </Project>

@@ -1,4 +1,7 @@
 #include "external_lib_data_source.hpp"
+#ifdef CAFFEX_DNNX_BUILD
+#include "FixedPoint.h"
+#endif
 #include "dataset_events_sink.hpp"
 #include "dataset_io.hpp"
 #include "check.hpp"
@@ -6,6 +9,7 @@
 #include <array>
 #include <string>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <iostream>
 
@@ -51,9 +55,13 @@ struct TypeMap<double>
 template <class Dtype>
 class CaffeDatum : public IDatum, public IExample<Dtype> {
 public:
-  CaffeDatum(vector<const char*>&& blob_names) :
-    blob_names_(move(blob_names)), blobs_(blob_names_.size()), blob_shapes_(blob_names_.size())
+  typedef Dtype IdsType;
+
+  CaffeDatum(vector<const char*>&& blob_names)
   {
+    blob_names_ = move(blob_names);
+    blobs_.resize(blob_names_.size());
+    blob_shapes_.resize(blob_names_.size());
   }
 
   // IExample override.
@@ -91,7 +99,7 @@ public:
     memcpy(blob_data, blobs_[ib].data(), blobs_[ib].size() * sizeof(Dtype));
   }
 
-  // Given the blb name returns its index in the vector of blobs.
+  // Given the blob name returns its index in the vector of blobs.
   int BlobIndexFromName(const char* blob_name)
   {
     int index = -1;
@@ -107,23 +115,53 @@ public:
     return index;
   }
 
+protected:
+  vector<vector<Dtype>> blobs_;
+
 private:
   static const int c_blob_dims_ = 3;
 
   vector<const char*> blob_names_;
-  vector<vector<Dtype>> blobs_;
   vector<array<int, c_blob_dims_>> blob_shapes_;
 };
 
+#ifdef CAFFEX_DNNX_BUILD
+
+// Caffe datum fixed point overrides GetBlobData to return input data in
+// fixed point type.
+class CaffeDatumFixedPoint : public CaffeDatum<float>
+{
+public:
+  CaffeDatumFixedPoint(vector<const char*>&& blob_names) :
+    CaffeDatum<float>(move(blob_names)){}
+
+  // IDatum override.
+  virtual void GetBlobData(const char* blob_name, void* blob_data,
+    BlobType type) override
+  {
+    // We expect to be asked for the same type we are instantiated with.
+    CHECK(type == BlobType::BlobTypeFixedPoint, "Invalid type of the buffer provided.");
+    const int ib = BlobIndexFromName(blob_name);
+    FixedPoint* blob_data_fixed_point = static_cast<FixedPoint*>(blob_data);
+    const float* blob_data_float = blobs_[ib].data();
+    for (size_t i = 0; i < blobs_[ib].size(); ++i)
+    {
+      blob_data_fixed_point[i] = static_cast<FixedPoint>(blob_data_float[i]);
+    }
+  }
+};
+
+#endif
+
 // Implementation of data source interface required by Caffe.
-template <class Dtype>
+template <class DATUM>
 class CaffeDataSource : public IExternalLibDataSource
 {
 public:
   CaffeDataSource(const string external_lib_params) {
 
     // Create dataset loader.
-    ds_loader_ = CreateLoader<Dtype>(external_lib_params, nullptr, nullptr);
+    ds_loader_ = CreateLoader<typename DATUM::IdsType>(external_lib_params, nullptr, nullptr);
 
     // Take names of the blobs inside dataset.
     int blobs_count = ds_loader_->GetBlobsCount();
@@ -134,11 +172,11 @@ public:
     }
 
     // Create datum and populate it from dataset loader.
-    datum_ = unique_ptr<CaffeDatum<Dtype>>(new CaffeDatum<Dtype>(move(blob_names)));
+    datum_ = unique_ptr<DATUM>(new DATUM(move(blob_names)));
     ds_loader_->GetExample(datum_.get());
   }
 
-  // Return configuration string to be logged to Caffe ouput.
+  // Return configuration string to be logged to Caffe output.
   virtual const char* GetConfiguration() override
   {
     return ds_loader_->GetConfiguration();
@@ -161,18 +199,28 @@ public:
   }
 
 private:
-  unique_ptr<IDsLoader<Dtype>> ds_loader_;
-  unique_ptr<CaffeDatum<Dtype>> datum_;
+  unique_ptr<IDsLoader<typename DATUM::IdsType>> ds_loader_;
+  unique_ptr<DATUM> datum_;
 };
 
 extern "C" CAFFE_DLL_EXPORT IExternalLibDataSource* CreateDataSourceFloat(
   const char* external_lib_params)
 {
-  return new CaffeDataSource<float>(external_lib_params);
+  return new CaffeDataSource<CaffeDatum<float>>(external_lib_params);
 }
 
 extern "C" CAFFE_DLL_EXPORT IExternalLibDataSource* CreateDataSourceDouble(
   const char* external_lib_params)
 {
-  return new CaffeDataSource<double>(external_lib_params);
+  return new CaffeDataSource<CaffeDatum<double>>(external_lib_params);
 }
+
+#ifdef CAFFEX_DNNX_BUILD
+
+extern "C" CAFFE_DLL_EXPORT IExternalLibDataSource* CreateDataSourceFixedPoint(
+  const char* external_lib_params)
+{
+  return new CaffeDataSource<CaffeDatumFixedPoint>(external_lib_params);
+}
+
+#endif

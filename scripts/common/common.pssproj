@@ -8,7 +8,9 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' " />
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' " />
+  <Import Project="..\Scripts.props" />
   <ItemGroup>
     <Compile Include="common.ps1" />
   </ItemGroup>
+  <Import Project="..\Scripts.targets" />
 </Project>

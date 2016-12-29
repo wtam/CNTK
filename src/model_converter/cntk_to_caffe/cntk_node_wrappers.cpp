@@ -81,34 +81,9 @@ size_t PoolingNodeBaseWrapper<Base>::GetVerticalSubsample() const { return m_ver
 template <typename Base>
 ImageLayoutKind PoolingNodeBaseWrapper<Base>::GetImageLayoutKind() const { return m_imageLayoutKind; }
 
-
-#ifdef CONVERT_CROP_NODE
-template <typename Base>
-CropNodeWrapper<Base>::CropNodeWrapper(DEVICEID_TYPE deviceId, const wstring& name)
-    : Base(deviceId, name)
-{}
-
-template <typename Base>
-shared_ptr<CropNodeWrapper<Base>> CropNodeWrapper<Base>::CreateWrapper(DEVICEID_TYPE deviceId, const Base& node)
-{
-    auto wrapper = make_shared<CropNodeWrapper<Base>>(deviceId, node.GetName());
-    node.CopyTo(wrapper, node.GetName(), Microsoft::MSR::CNTK::CopyNodeFlags::copyNodeValue);
-    return wrapper;
-}
-
-template <typename Base>
-int CropNodeWrapper<Base>::GetOffsetX() const { return m_xOffset; }
-
-template <typename Base>
-int CropNodeWrapper<Base>::GetOffsetY() const { return m_yOffset; }
-#endif
-
 template class PoolingNodeBaseWrapper<MaxPoolingNode<float>>;
 template class PoolingNodeBaseWrapper<AveragePoolingNode<float>>;
 template class ConvolutionNodeBaseWrapper<ConvolutionNode<float>>;
 template class ConvolutionNodeBaseWrapper<PoolingNode<float>>;
 
-#ifdef CONVERT_CROP_NODE
-template class CropNodeWrapper<CropNode<float>>;
-#endif
 }}}

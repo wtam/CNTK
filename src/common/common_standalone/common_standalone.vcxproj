@@ -72,10 +72,12 @@
     <ClInclude Include="background_workers_pool.hpp" />
     <ClInclude Include="check.hpp" />
     <ClInclude Include="fixed_memory_manager.hpp" />
+    <ClInclude Include="log.hpp" />
     <ClInclude Include="tag_filter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="check.cpp" />
+    <ClCompile Include="log.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -30,6 +30,14 @@ struct ChannelSet
 {
   ChannelSet() : channels(-1), compression(Compression::Unknown) { memset(name, 0, c_max_name_len); }
 
+  // Returns true if given channelset is compatible with this one.
+  bool CheckCompatible(const ChannelSet& other)
+  {
+    return (channels == other.channels) &&
+      (compression == other.compression) &&
+      (strcmp(name, other.name) == 0);
+  }
+
   // Number of channels per channelset.
   int channels;
   // Type of channelset compression.
@@ -42,6 +50,12 @@ struct ChannelSet
 struct DsHeader
 {
   DsHeader() : ids_file_version_(c_ids_file_version), channelsets_count(0) {}
+
+  // Returns true if given dataset header is compatible with this one.
+  bool CheckCompatible(const DsHeader& other)
+  {
+    return (ids_file_version_ == other.ids_file_version_) && (channelsets_count == other.channelsets_count);
+  }
 
   // Version of ids file, ensures file and reader version match.
   // !!! Important: As new versions are produced this must remain first field in DsHeader to enable version check.

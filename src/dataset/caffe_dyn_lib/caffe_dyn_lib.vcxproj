@@ -46,6 +46,15 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros">
     <NuGetPackageImportStamp>0c91d16f</NuGetPackageImportStamp>
+    <CaffeInterfaceDirs>$(CaffeRepositoryRoot)\include\caffe\util</CaffeInterfaceDirs>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(CaffexDnnxBuild)' == 'true'">
+    <ClCompile>
+      <PreprocessorDefinitions>CAFFEX_DNNX_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <PropertyGroup Label="UserMacros" Condition="'$(CaffexDnnxBuild)' == 'true'">
+    <CaffeInterfaceDirs>$(CaffeRepositoryRoot)\include\caffe;$(CaffeInterfaceDirs)</CaffeInterfaceDirs>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -57,7 +66,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;CAFFE_DYN_LIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CaffeInterfaceDir);$(DsLibDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CaffeInterfaceDirs);$(DsLibDir)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -70,7 +79,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;CAFFE_DYN_LIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CaffeInterfaceDir);$(DsLibDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(CommonDir)\common_standalone;$(CaffeInterfaceDirs);$(DsLibDir)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -112,7 +121,7 @@
     <BuildDependsOn>OriginalBuild;SkipBuild</BuildDependsOn>
   </PropertyGroup>
   <Target Name="OriginalBuild" Condition="'$(BuildCaffeDynLib)'=='true'" DependsOnTargets="$(OriginalBuildDependsOn)" />
-  <Target Name="SkipBuild" Condition="'$(BuildCaffeDynLib)'!='true'" >
+  <Target Name="SkipBuild" Condition="'$(BuildCaffeDynLib)'!='true'">
     <Message Text="Skipping project $(ProjectName) since it is disabled in common_settings.props." Importance="High" />
   </Target>
 </Project>
