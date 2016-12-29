@@ -18,6 +18,7 @@
 
 using google::protobuf::Message;
 using google::protobuf::io::FileInputStream;
+using google::protobuf::io::FileOutputStream;
 
 void ReadProtoFromTextFile(const char* filename, Message* proto) {
   int fd = open(filename, O_RDONLY);
@@ -26,6 +27,16 @@ void ReadProtoFromTextFile(const char* filename, Message* proto) {
   CHECK(google::protobuf::TextFormat::Parse(input.get(), proto),
     "Parsing proto file %s failed.", filename);
   close(fd);
+}
+
+void WriteProtoToTextFile(const Message& proto, const std::string& filename) {
+    int fd = open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    {
+        std::unique_ptr<FileOutputStream> output(new FileOutputStream(fd));
+        CHECK(google::protobuf::TextFormat::Print(proto, output.get()),
+            "Writing proto file %s failed.", filename.c_str());
+    }
+    close(fd);
 }
 
 #pragma warning(pop)

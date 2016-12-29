@@ -427,9 +427,7 @@ public:
     DirectMappingBinaryProcessor(NodeFactory* factory) : RuleBasedNodeProcessor(factory)
     {
         rules_.emplace_back(CreateDirectingMappingRule(NodeTag::Plus, NodeTag::Eltwise));
-#ifdef CONVERT_CROP_NODE
         rules_.emplace_back(CreateDirectingMappingRule(NodeTag::Crop, NodeTag::Crop));
-#endif
     }
 
     void Apply(list<shared_ptr<Node>>& nodes) override
@@ -438,9 +436,9 @@ public:
         CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
         shared_ptr<Node> operation = nodes.front();
         nodes.pop_front();
-        shared_ptr<Node> operand_1 = nodes.front();
-        nodes.pop_front();
         shared_ptr<Node> operand_2 = nodes.front();
+        nodes.pop_front();
+        shared_ptr<Node> operand_1 = nodes.front();
         nodes.pop_front();
 
         operation->SetTags(rule->GetResolvedTags());
@@ -456,12 +454,54 @@ protected:
     static unique_ptr<ReduceRule> CreateDirectingMappingRule(NodeTag operation_tag, NodeTag result_tag)
     {
         Filter<NodeTag> operation({ operation_tag }, { NodeTag::IsLayer });
-        Filter<NodeTag> operand_1({ NodeTag::IsLayer });
         Filter<NodeTag> operand_2({ NodeTag::IsLayer });
+        Filter<NodeTag> operand_1({ NodeTag::IsLayer });
         unordered_set<NodeTag> product{ result_tag, NodeTag::IsLayer };
-        vector<Filter<NodeTag>> filters{ operation, operand_1, operand_2 };
+        vector<Filter<NodeTag>> filters{ operation, operand_2, operand_1 };
         return make_unique<ReduceRule>(move(filters), unordered_set<NodeTag>(product));
     }
+};
+
+// Rules for replacing CNTK crop node with given ancestors by Caffe crop node.
+class CropGivenAncestorsProcessor : public RuleBasedNodeProcessor
+{
+public:
+  CropGivenAncestorsProcessor(NodeFactory* factory) : RuleBasedNodeProcessor(factory)
+  {
+    Filter<NodeTag> crop({ NodeTag::CropGivenAncestors }, { NodeTag::IsLayer });
+    Filter<NodeTag> ref_ancestor({ NodeTag::IsLayer });
+    Filter<NodeTag> crop_ancestor({ NodeTag::IsLayer });
+    Filter<NodeTag> ref_input({ NodeTag::IsLayer });
+    Filter<NodeTag> crop_input({ NodeTag::IsLayer });
+    unordered_set<NodeTag> product{ NodeTag::Crop, NodeTag::IsLayer };
+    vector<Filter<NodeTag>> filters{ crop, ref_ancestor, crop_ancestor, ref_input, crop_input };
+    rules_.emplace_back(make_unique<ReduceRule>(move(filters), unordered_set<NodeTag>(product)));
+  }
+
+  void Apply(list<shared_ptr<Node>>& nodes) override
+  {
+    const ReduceRule* rule = GetApplicableRule(nodes);
+    CHECK(rule != nullptr, "GetApplicableRule returned nullptr rule.");
+    shared_ptr<Node> crop = nodes.front();
+    nodes.pop_front();
+    shared_ptr<Node> ref_ancestor = nodes.front();
+    nodes.pop_front();
+    shared_ptr<Node> crop_ancestor = nodes.front();
+    nodes.pop_front();
+    shared_ptr<Node> ref_input = nodes.front();
+    nodes.pop_front();
+    shared_ptr<Node> crop_input = nodes.front();
+    nodes.pop_front();
+
+    crop->SetTags(rule->GetResolvedTags());
+    crop_input->AddTopConnection(crop);
+    ref_input->AddTopConnection(crop);
+    crop->AddBottomConnection(crop_input);
+    crop->AddBottomConnection(ref_input);
+    nodes.push_front(crop);
+  }
+
+  ~CropGivenAncestorsProcessor() override = default;
 };
 
 class CntkToCaffeConverter
@@ -473,6 +513,7 @@ public:
         processors_.emplace_back(make_unique<AddBiasProcessor>(node_factory_.get()));
         processors_.emplace_back(make_unique<BatchNormalizationProcessors>(node_factory_.get()));
         processors_.emplace_back(make_unique<BinaryOpWithLearnableParameterProcessor>(node_factory_.get()));
+        processors_.emplace_back(make_unique<CropGivenAncestorsProcessor>(node_factory_.get()));
         processors_.emplace_back(make_unique<DirectMappingBinaryProcessor>(node_factory_.get()));
         processors_.emplace_back(make_unique<DirectMappingUnaryProcessors>(node_factory_.get()));
         processors_.emplace_back(make_unique<InputNodeProcessor>(node_factory_.get()));

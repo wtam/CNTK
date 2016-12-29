@@ -48,19 +48,4 @@ public:
     ImageLayoutKind GetImageLayoutKind() const;
 };
 
-#ifdef CONVERT_CROP_NODE
-template <class CropNodeBase>
-class CropNodeWrapper : public CropNodeBase
-{
-private:
-    typedef CropNodeBase Base;
-    static const std::wstring TypeName() { return Base::TypeName(); }
-public:
-    static std::shared_ptr<CropNodeWrapper<Base>> CreateWrapper(DEVICEID_TYPE deviceId, const Base& node);
-    CropNodeWrapper(DEVICEID_TYPE deviceId, const std::wstring& name);
-    int GetOffsetX() const;
-    int GetOffsetY() const;
-};
-#endif
-
 }}}

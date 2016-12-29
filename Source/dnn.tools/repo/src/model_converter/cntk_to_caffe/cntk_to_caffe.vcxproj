@@ -45,7 +45,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CONVERT_CROP_NODE;CPU_ONLY;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CPU_ONLY;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(CaffeRepositoryRoot)\include;$(CntkRepositoryRoot);$(CntkRepositoryRoot)\Source\ActionsLib;$(CntkRepositoryRoot)\Source\Common\Include;$(CntkRepositoryRoot)\Source\ComputationNetworkLib;$(CntkRepositoryRoot)\Source\Math;$(CommonDir)\common_standalone</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -63,7 +63,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>CONVERT_CROP_NODE;CPU_ONLY;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CPU_ONLY;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(CaffeRepositoryRoot)\include;$(CntkRepositoryRoot);$(CntkRepositoryRoot)\Source\ActionsLib;$(CntkRepositoryRoot)\Source\Common\Include;$(CntkRepositoryRoot)\Source\ComputationNetworkLib;$(CntkRepositoryRoot)\Source\Math;$(CommonDir)\common_standalone</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>

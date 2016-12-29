@@ -1,0 +1,69 @@
+layer {
+  name: "ol.x._.x.x._.x"
+  type: "Input"
+  top: "ol.x._.x.x._.x"
+  transform_param {
+    scale: 0.00390625
+  }
+  input_param {
+    shape {
+      dim: 1
+      dim: 28
+      dim: 28
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "ol.x._.x.x._.res.x"
+  type: "Convolution"
+  bottom: "ol.x._.x.x._.x"
+  top: "ol.x._.x.x._.res.x"
+  convolution_param {
+    num_output: 16
+    pad: 2
+    kernel_size: 5
+    stride: 1
+  }
+}
+layer {
+  name: "ol.x._.x.x"
+  type: "ReLU"
+  bottom: "ol.x._.x.x._.res.x"
+  top: "ol.x._.x.x"
+}
+layer {
+  name: "_ol.x._.x"
+  type: "Pooling"
+  bottom: "ol.x._.x.x"
+  top: "_ol.x._.x"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "ol.x._.x"
+  type: "InnerProduct"
+  bottom: "_ol.x._.x"
+  top: "ol.x._.x"
+  inner_product_param {
+    num_output: 64
+  }
+}
+layer {
+  name: "ol.x"
+  type: "ReLU"
+  bottom: "ol.x._.x"
+  top: "ol.x"
+}
+layer {
+  name: "ol"
+  type: "InnerProduct"
+  bottom: "ol.x"
+  top: "ol"
+  inner_product_param {
+    num_output: 10
+  }
+}

@@ -214,9 +214,16 @@ public:
 
     shuffle_examples_ = parameters.shuffle_examples();
 
+    // Create ids file paths.
+    vector<string> ids_paths;
+    for (int ip = 0; ip < parameters.source_name_size(); ip++)
+    {
+        ids_paths.emplace_back(parameters.source_path() + "/" + parameters.source_name(ip));
+    }
+
     // Kick off ids file deserializing.
     unique_ptr<IIDSDeserializer> ids_deserializer = CreateIdsDeserializer({
-      parameters.source_path() + "/" + parameters.source_name(),
+      ids_paths,
       parameters.disk_prefetch_size(),
       events_sink_.get(),
       parameters.shuffle_chunks(),

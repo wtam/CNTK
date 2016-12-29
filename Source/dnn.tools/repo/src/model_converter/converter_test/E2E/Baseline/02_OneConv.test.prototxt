@@ -1,0 +1,106 @@
+# This file is Caffe configuration file that corresponds to Config/02_OneConv.cntk that is used in CNTK.
+# Layer names in these two files should be kept in sync.
+layer {
+  name: "ol.x._.x.x._.x"
+  type: "Data"
+  top: "ol.x._.x.x._.x"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "DataSets/MNIST/mnist_train_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "ol.x._.x.x._.x"
+  type: "Data"
+  top: "ol.x._.x.x._.x"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "DataSets/MNIST/mnist_test_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "ol.x._.x.x._.res.x"
+  type: "Convolution"
+  bottom: "ol.x._.x.x._.x"
+  top: "ol.x._.x.x._.res.x"
+  convolution_param {
+    num_output: 16
+    pad: 2
+    kernel_size: 5
+    stride: 1
+  }
+}
+layer {
+  name: "ol.x._.x.x"
+  type: "ReLU"
+  bottom: "ol.x._.x.x._.res.x"
+  top: "ol.x._.x.x"
+}
+layer {
+  name: "_ol.x._.x"
+  type: "Pooling"
+  bottom: "ol.x._.x.x"
+  top: "_ol.x._.x"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "ol.x._.x"
+  type: "InnerProduct"
+  bottom: "_ol.x._.x"
+  top: "ol.x._.x"
+  inner_product_param {
+    num_output: 64
+  }
+}
+layer {
+  name: "ol.x"
+  type: "ReLU"
+  bottom: "ol.x._.x"
+  top: "ol.x"
+}
+layer {
+  name: "ol"
+  type: "InnerProduct"
+  bottom: "ol.x"
+  top: "ol"
+  inner_product_param {
+    num_output: 10
+  }
+}
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "ol"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ol"
+  bottom: "label"
+  top: "loss"
+}

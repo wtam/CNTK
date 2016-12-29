@@ -1,0 +1,61 @@
+syntax = "proto2";
+
+package caffe_model_editor;
+
+enum EditAction {
+    REMOVE_LAYER = 0;
+    ADD_LAYER = 1;
+    EDIT_LAYER = 2;
+    COUNT = 3;
+}
+
+message RemoveLayerParameters {
+    // Name of the layer to remove.
+    required string name = 1;
+}
+
+message AddLayerParameters {
+    enum AddType {
+        PREPEND = 0;
+        APPEND = 1;
+    }
+
+    // Prepend or append.
+    required AddType add_type = 1;
+
+    // Name of the layer to add.
+    required string name = 2;
+    // Type of the layer to add.
+    required string type = 3;
+}
+
+message ParamSetterParameters {
+    // Optional name of layer parameter whose field is modified. If not
+    // specified layer field is modified.
+    optional string param_name = 1;
+    // Name of the field to modify.
+    required string name = 2;
+    // New field value.
+    required string value = 3;
+    // If field is repeated indicates the index to modify.
+    optional int32 index = 4;
+}
+
+message EditLayerParameters {
+    // Target layer name.
+    required string layer_name = 1;
+
+    repeated ParamSetterParameters param_setter_params = 3;
+}
+
+message CaffeModelEdit {
+    required EditAction edit_action = 1;
+
+    optional RemoveLayerParameters remove_layer_params = 100;
+    optional AddLayerParameters add_layer_params = 101;
+    optional EditLayerParameters edit_layer_params = 102;
+}
+
+message CaffeModelEdits {
+    repeated CaffeModelEdit edit = 1;
+}

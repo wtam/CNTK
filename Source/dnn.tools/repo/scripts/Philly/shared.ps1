@@ -1,4 +1,13 @@
-﻿function Get-PhillyJobList
+﻿# Include common functions.
+. (Join-Path -Path "$PSScriptRoot" -ChildPath "..\common\common.ps1")
+
+# Include Philly paths.
+. (Join-Path -Path "$PSScriptRoot" -ChildPath "Get-PhillyPaths.ps1")
+
+# Include function for getting Jenkins build from default log.
+. (Join-Path -Path "$PSScriptRoot" -ChildPath "..\jenkins\JenkinsJobs.ps1")
+
+function Get-PhillyJobList
 {
     <#
     .SYNOPSIS
@@ -116,6 +125,8 @@ function Submit-PhillyJob
     E.g. /hdfs/anlgvc/datasets/ids/v3/Capture
     .PARAMETER BuildId
     Specifies the CNTK build ID from Jenkins that you want Philly to use for this job.
+    .PARAMETER RackId
+    Specifies the name of Philly rack where to execute the job. E.g. s3501s3524.
     .PARAMETER ExtraParams
     Extra CNTK parameters to specialize the job. For example, tweaking the learning rate schedule outside the
     configuration file, e.g. TrainFCN32=[SGD=[minibatchSize=32 learningRatesPerMB=1e-8:1e-7:3.2e-7]]
@@ -142,6 +153,12 @@ function Submit-PhillyJob
         [ValidateNotNullOrEmpty()]
         [string]$BuildId,
 
+        [Parameter(Mandatory = $False)]
+        [string]$RackId="",
+
+        [Parameter(Mandatory = $False)]
+        [string]$CustomCntkDockerName,
+
         [Parameter(Mandatory = $True)]
         [int]$GpuCount=1,
 
@@ -165,26 +182,277 @@ function Submit-PhillyJob
         $EndPoint = "https://philly/api/submit"
 
         $body = @{
-            clusterId=$PhysicalCluster
-            vcId=$VirtualCluster
-            name=$Name
-            userName=$env:USERNAME
-            inputDir=$DataDir
-            minGPUs=$GpuCount
-            maxGPUs=$GpuCount
-            configFile=$ConfigFile
-            buildId=$BuildId
-            isdebug=$False
-            extraParams=$ExtraParams
-            toolType="cntk"
+            clusterId = $PhysicalCluster
+            vcId = $VirtualCluster
+            name = $Name
+            userName = $env:USERNAME
+            inputDir = (ConvertToLinux-Path -Path $DataDir)
+            minGPUs = $GpuCount
+            maxGPUs = $GpuCount
+            configFile = (ConvertToLinux-Path -Path $ConfigFile)
+            buildId = $BuildId
+            isdebug = $False
+            extraParams = $ExtraParams
+            toolType = "cntk"
         }
 
-        If ($PSBoundParameters.ContainsKey("PreviousModelPath"))
+        If ($PSBoundParameters.ContainsKey("PreviousModelPath") -and $PreviousModelPath)
         {
             $body.Add("prevModelPath", $PreviousModelPath)
         }
 
+        If ($PSBoundParameters.ContainsKey("RackId") -and $RackId)
+        {
+            $body.Add("rackid", $RackId)
+        }
+
+        If ($PSBoundParameters.ContainsKey("CustomCntkDockerName") -and $CustomCntkDockerName)
+        {
+            $body.Add("tag", $CustomCntkDockerName)
+        }
+
         Invoke-RestMethod $EndPoint -Body $body -UseDefaultCredentials
+}
+
+function SubmitFromLocal-PhillyJob
+{
+    <#
+    .SYNOPSIS
+    Submits job to Philly.
+    .DESCRIPTION
+    Submits job to Philly using REST API.
+    .EXAMPLE
+    Submit-PhillyJob -Name FCN32 -ConfigFile D:\movasi\FCN32\fcn32.cntk -DataSet BD2 -PhysicalCluster rr1 -VirtualCluster anlgvc
+    .EXAMPLE
+    Submit-PhillyJob -Name FCN32 -ConfigFile D:\movasi\FCN32\fcn32.cntk -DataSet BD2 -BuildId 2701 -ExtraParams "TrainFCN32=[SGD=[minibatchSize=32 learningRatesPerMB=1e-8:1e-7:3.2e-7]]"
+    Extra parameters will be used for overriding corresponding fields in ConfigFile
+    .PARAMETER Name
+    A distinguishing name for the job, e.g. lstmTry4
+    .PARAMETER ConfigFile
+    CNTK main configuration file. Content of the file's parent folder will be copied to Philly scratch.
+    .PARAMETER DataSet
+    Data set to be used in training.
+    .PARAMETER BuildId
+    Specifies the CNTK build ID from Jenkins that you want Philly to use for this job. [TODO] If not specified, latest known good will be used.
+    .PARAMETER RackId
+    Specifies the name of Philly rack where to execute the job. E.g. s3501s3524.
+    .PARAMETER ExtraParams
+    Extra CNTK parameters to specialize the job. For example, tweaking the learning rate schedule outside the configuration file, e.g. TrainFCN32=[SGD=[minibatchSize=32 learningRatesPerMB=1e-8:1e-7:3.2e-7]]
+    .PARAMETER PhysicalCluster
+    Physical cluster on Philly, e.g. gcr, rr1
+    .PARAMETER VirtualCluster
+    Virtual cluster on Philly, e.g. anlgvc
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
+
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ConfigFile,
+
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("BD2", "BD3", "ImageNet", "PascalVOC", "Pascal-Context")]
+        [string]$DataSet,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [string]$BuildId,
+
+        [Parameter(Mandatory = $False)]
+        [string]$RackId="",
+
+        [Parameter(Mandatory = $False)]
+        [string]$CustomCntkDockerName,
+
+        [Parameter(Mandatory = $False)]
+        [int]$GpuCount=1,
+
+        [Parameter(Mandatory = $False)]
+        [string]$ExtraParams="",
+
+        [Parameter(Mandatory = $False)]
+        [string]$PreviousModelPath,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("gcr", "rr1")]
+        [string]$PhysicalCluster = "rr1",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("anlgvc")]
+        [string]$VirtualCluster = "anlgvc"
+        )
+
+    [int]$JenkinsBuild = $null
+    If ($PSBoundParameters.ContainsKey("BuildId"))
+    {
+        $JenkinsBuild = $BuildId
+    }
+    Else
+    {
+        # If build ID is not provided, get build ID of the latest known good daily build.
+        $JenkinsBuild = Get-LKGJenkinsBuildId
+    }
+    Check `
+        -Condition (!!$JenkinsBuild) `
+        -Message "Jenkins build ID not provided. Latest daily build unsuccessful."
+
+    # Copy config folder to Philly scratch.
+    $ConfigFolder = Split-Path $ConfigFile
+    $PhillyConfigFile = CopyToPhilly-JobConfigurationFiles `
+                            -MainConfigFile $ConfigFile `
+                            -PhysicalCluster $PhysicalCluster `
+                            -VirtualCluster $VirtualCluster `
+                            -JobName $Name
+    Write-Host -ForegroundColor DarkGreen "Using configuration file $PhillyConfigFile."
+
+    # Location of data on Philly HDFS.
+    $InputDirectory = Get-PhillyDataSet -DataSet $DataSet
+    Write-Host -ForegroundColor DarkGreen "Using data folder $InputDirectory."
+
+    # Submit job.
+    Submit-PhillyJob `
+            -Name $Name `
+            -ConfigFile $PhillyConfigFile `
+            -DataDir $InputDirectory `
+            -BuildId $JenkinsBuild `
+            -RackId $RackId `
+            -CustomCntkDockerName $CustomCntkDockerName `
+            -GpuCount $GpuCount `
+            -ExtraParams $ExtraParams `
+            -PreviousModelPath $PreviousModelPath `
+            -PhysicalCluster $PhysicalCluster `
+            -VirtualCluster $VirtualCluster
+}
+
+function CopyToPhilly-JobConfigurationFiles
+{
+    <#
+    .SYNOPSIS
+    Copies content of configuration folder to Philly scratch.
+    .DESCRIPTION
+    Creates configuration folder in user folder on Philly scratch and copies local configuration files to it. Returns relative path to config file on Philly scratch.
+    .EXAMPLE
+    CopyToPhilly-JobConfigurationFiles -MainConfigFile D:\movasi\FCN8_config -PhillyConfigFolder \\storage.rr1.philly.selfhost.corp.microsoft.com\anlgvc_scratch\movasi\FCN8_20161107_144738252
+    .PARAMETER MainConfigFile
+    Main CNTK configuration file. All other training configuration files should be in the same parent folder (or under sub-folder in parent folder hierarchy).
+    .PARAMETER PhysicalCluster
+    Physical cluster on Philly, e.g. gcr, rr1
+    .PARAMETER VirtualCluster
+    Virtual cluster on Philly, e.g. anlgvc
+    .PARAMETER JobName
+    Name of a job to be trained with specified configuration files.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullOrEmpty()]
+        [string]$MainConfigFile,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("gcr", "rr1")]
+        [string]$PhysicalCluster = "rr1",
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("anlgvc")]
+        [string]$VirtualCluster = "anlgvc",
+
+        [Parameter(Mandatory = $False)]
+        [string]$JobName
+        )
+
+    Check `
+        -Condition (Test-Path $MainConfigFile -pathType leaf) `
+        -Message "$MainConfigFile doesn't exist or is not a file."
+
+    $ConfigFolder = Split-Path $MainConfigFile
+    $ConfigFileName = Split-Path -Leaf $MainConfigFile
+
+    # Get configuration folder on Philly scratch.
+    $PhillyConfigFolder = Get-NewPhillyScratchConfigFolder `
+                            -PhysicalCluster $PhysicalCluster `
+                            -VirtualCluster $VirtualCluster `
+                            -JobName $JobName
+
+    Write-Host `
+        -ForegroundColor DarkYellow `
+        "Copying configuration files from $ConfigFolder to $($PhillyConfigFolder.AbsolutePath)..."
+
+    # Get all configuration files.
+    $configFileTypes = @("*.bs", "*.cntk", "*.mel", "*.ndl", "*.prototxt")
+    $configFiles = Get-ChildItem `
+                    -Path $ConfigFolder `
+                    -Include $configFileTypes `
+                    -Recurse `
+                    -Force
+
+    # Copy configuration files to Philly scratch.
+    ForEach ($configFile in $configFiles)
+    {
+        $sourceFile = $configFile.FullName
+        $destinationFile = Join-Path $PhillyConfigFolder.AbsolutePath ($sourceFile.Substring($ConfigFolder.Length))
+        $destinationFolder = Split-Path $destinationFile
+        EnsureExists-Item -Path $destinationFolder -ItemType Directory
+        $sourceFileName = Split-Path -Leaf $sourceFile
+        Write-Host `
+            "Copying: $sourceFileName" `
+            -ForegroundColor DarkGreen
+        Copy-Item `
+            -Path $sourceFile `
+            -Destination $destinationFile `
+            -Force
+    }
+
+    # Check whether shared.bs file is used in configuration file and ensure it's copied to Philly.
+    $SharedBsFileName = "shared.bs"
+    $ConfigFileContent = Get-Content -Path $MainConfigFile
+    If (!!($ConfigFileContent -cmatch "include .+$SharedBsFileName"))
+    {
+        # List of possible locations of shared.bs file relative to configuration folder.
+        $SharedBsRelativePaths = @($SharedBsFileName, (Join-Path ..\common $SharedBsFileName))
+        $IsSharedBsCopied = $False
+        ForEach ($SharedBsRelativePath in $SharedBsRelativePaths)
+        {
+            $SharedBsSource = Join-Path $ConfigFolder $SharedBsRelativePath
+            If (Test-Path -Path $SharedBsSource)
+            {
+                $SharedBsDestination = Join-Path $PhillyConfigFolder.AbsolutePath $SharedBsRelativePath
+                If (!(Test-Path -Path $SharedBsDestination))
+                {
+                    EnsureExists-Item -Path (Split-Path $SharedBsDestination) -ItemType Directory
+                    Write-Host `
+                        "Copying: $SharedBsFileName" `
+                        -ForegroundColor DarkGreen
+                    Copy-Item `
+                        -Path $SharedBsSource `
+                        -Destination $SharedBsDestination `
+                        -Force
+                }
+                # Else: already copied to Philly scratch.
+                $IsSharedBsCopied = $True
+                Break
+            }
+        }
+
+        If (!$IsSharedBsCopied)
+        {
+            Write-Warning -Message "$SharedBsFileName included in configuration file, but it cannot be found!"
+        }
+    }
+
+    Write-Host `
+        -ForegroundColor DarkGreen `
+        "Copied configuration files from $ConfigFolder to $($PhillyConfigFolder.AbsolutePath)."
+
+    $ConfigFileRelativePath = Join-Path $PhillyConfigFolder.RelativePath $ConfigFileName
+    return ConvertToLinux-Path -Path $ConfigFileRelativePath
 }
 
 function CopyTraingFiles-PhillyJob
@@ -247,13 +515,15 @@ function CopyTraingFiles-PhillyJob
         [string]$VirtualCluster = "anlgvc"
         )
 
-    $DataBaseDir = Join-Path \\storage.$PhysicalCluster.philly.selfhost.corp.microsoft.com $VirtualCluster
-    $ConfigBaseDir = Join-Path \\storage.$PhysicalCluster.philly.selfhost.corp.microsoft.com $VirtualCluster"_scratch"
+    $DataBaseDir = Get-PhillyHdfsShare `
+                    -PhysicalCluster $PhysicalCluster `
+                    -VirtualCluster $VirtualCluster
+    $ConfigBaseDir = Get-PhillyScratch `
+                        -PhysicalCluster $PhysicalCluster `
+                        -VirtualCluster $VirtualCluster
 
-    if (-not(Test-Path $OutputBaseDir))
-    {
-        New-Item -ItemType Directory $OutputBaseDir -Force
-    }
+    EnsureExists-Item -Path $OutputBaseDir -ItemType Directory
+
     # copy config files
     $ConfigBasePath = split-path -parent $ConfigFile
     $ConfigFilePath = Join-Path $ConfigBaseDir $ConfigBasePath
@@ -262,6 +532,7 @@ function CopyTraingFiles-PhillyJob
         Write-Error("$($ConfigFilePath.ToString()) does not exist!")
         return
     }
+
     $OutputConfigPath = Join-Path $OutputBaseDir "config"
     Write-Host("Copying $($ConfigFilePath.ToString()) to $($OutputConfigPath.ToString())")
     Copy-Item $ConfigFilePath $OutputConfigPath -Force -Recurse
@@ -270,10 +541,7 @@ function CopyTraingFiles-PhillyJob
     $PreviousModelPath = Join-Path $DataBaseDir $PreviousModelPath
     $OutputPrevModelPath = Join-Path $OutputBaseDir "previousModels"
 
-    if (-not(Test-Path $OutputPrevModelPath))
-    {
-        New-Item -ItemType Directory -Path $OutputPrevModelPath -Force
-    }
+    EnsureExists-Item -Path $OutputPrevModelPath -ItemType Directory
     $PreviousModelFiles = Get-ChildItem $PreviousModelPath\*
     foreach ($File in $PreviousModelFiles)
     {
@@ -289,10 +557,7 @@ function CopyTraingFiles-PhillyJob
 
     # copy output model files
     $OutputModelPath = Join-Path $OutputBaseDir "model"
-    if (-not(Test-Path $OutputModelPath))
-    {
-        New-Item -ItemType Directory -Path $OutputModelPath -Force
-    }
+    EnsureExists-Item -Path $OutputModelPath -ItemType Directory
     $OutputModelFolder= Join-Path $OutputModelFolder "models"
     $OutputModelFiles = Get-ChildItem $OutputModelFolder\*
     foreach ($File in $OutputModelFiles)

@@ -4,6 +4,9 @@
 *.sdf
 *.opensdf
 
+#Eclipse files
+src/.settings/language.settings.xml
+
 #Config files
 *.props
 *.config

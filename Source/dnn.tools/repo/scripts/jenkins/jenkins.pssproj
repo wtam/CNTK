@@ -8,8 +8,11 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' " />
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' " />
+  <Import Project="..\Scripts.props" />
   <ItemGroup>
+    <Compile Include="Build-Cntk.ps1" />
     <Compile Include="example_submit_job.ps1" />
     <Compile Include="JenkinsJobs.ps1" />
   </ItemGroup>
+  <Import Project="..\Scripts.targets" />
 </Project>

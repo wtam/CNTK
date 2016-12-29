@@ -1,0 +1,12 @@
+# MNIST data set
+DataSets/MNIST/*.txt
+DataSets/MNIST/mnist_test_leveldb
+DataSets/MNIST/mnist_train_leveldb
+DataSets/MNIST/*.gz
+DataSets/MNIST/*ubyte
+
+# MNIST download script byproduct
+DataSets/MNIST/*.pyc
+
+# CNTK output model
+Output

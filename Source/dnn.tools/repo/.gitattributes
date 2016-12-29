@@ -8,6 +8,10 @@
 
 # Linux project files
 Makefile text
+# Eclipse Linux project files
+.cproject text
+.project text
+*.launch text
 
 # Windows project files
 *.sln text
@@ -23,6 +27,9 @@ Makefile text
 *.proto text
 
 # Script source files
+*.py text
+
+# Script source files
 *.ps1 text
 *.cmd text
 
@@ -31,3 +38,8 @@ Makefile text
 
 # Example files (Example configs)
 *.example text
+
+# Model description files
+*.prototxt text
+*.cntk text
+*.model text

@@ -1,3 +1,4 @@
+#include "check.hpp"
 #include "node_tag.h"
 
 #pragma warning( disable: 4996 )
@@ -27,12 +28,22 @@ NodeTag GetTag(const cntk::ComputationNodeBase& node)
     {
         return NodeTag::Convolution;
     }
-#ifdef CONVERT_CROP_NODE
     else if (dynamic_cast<const cntk::CropNode<float>*>(&node) != nullptr)
     {
-        return NodeTag::Crop;
+        if (node.GetNumInputs() == 4)
+        {
+            return NodeTag::CropGivenAncestors;
+        }
+        else if (node.GetNumInputs() == 2)
+        {
+            return NodeTag::Crop;
+        }
+        else
+        {
+            CHECK(false, "Crop node with %u inputs found, only 2 or 4 inputs are supported.", node.GetNumInputs());
+            return NodeTag::Crop; // Prevent warning.
+        }
     }
-#endif
     else if (dynamic_cast<const cntk::ElementTimesNode<float>*>(&node) != nullptr)
     {
         return NodeTag::ElementTimes;
@@ -85,10 +96,10 @@ std::string ToString(const NodeTag& tag)
         return "BatchNorm";
     case NodeTag::Convolution:
         return "Convolution";
-#ifdef CONVERT_CROP_NODE
     case NodeTag::Crop:
         return "Crop";
-#endif
+    case NodeTag::CropGivenAncestors:
+        return "CropGivenAncestors";
     case NodeTag::ElementTimes:
         return "ElementTimes";
     case NodeTag::Eltwise:

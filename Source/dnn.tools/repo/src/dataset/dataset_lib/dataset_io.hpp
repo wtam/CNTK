@@ -8,7 +8,7 @@
 class DatasetEventsSink;
 
 // Creates dataset given the config file and output path.
-void MakeDataset(const std::string& config_file_path, const std::string& out_ds_file_path);
+void MakeDataset(const std::string& config_file_path, const std::string& out_ds_file_path, bool strict_mode);
 
 // Declaration of example exported by loader.
 template <typename Dtype>
@@ -41,17 +41,18 @@ public:
 // IDs for available overridable parameters.
 enum class OverridableParamID
 {
-  source_path = 0,  // Path to ids file.
+  source_path = 0,  // Path to ids files.
   loader_index,     // In case of distributed reading denotes the index of the reader.
   loaders_count,    // In case of distributed reading number of readers.
+  source_name,      // Names of ids file.
   count             // Number of allowed overridable parameters.
 };
 
 // Describes how to override parameter.
 struct OverridableParam
 {
-  OverridableParamID id;  // ID of parameter to derive.
-  std::string value;      // New parameter value.
+  OverridableParamID id;            // ID of parameter to derive.
+  std::vector<std::string> values;  // New parameter value. If not repeated parameter needs to be just one, several otherwise.
 };
 
 template <typename Dtype>

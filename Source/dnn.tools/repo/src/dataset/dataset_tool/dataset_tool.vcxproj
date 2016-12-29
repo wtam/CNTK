@@ -57,7 +57,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(DsLibDir);$(CommonDir)\cmd_line_parser</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(DsLibDir);$(CommonDir)\cmd_line_parser;$(CommonDir)\common_standalone;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -70,7 +70,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(DsLibDir);$(CommonDir)\cmd_line_parser</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(DsLibDir);$(CommonDir)\cmd_line_parser;$(CommonDir)\common_standalone;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
