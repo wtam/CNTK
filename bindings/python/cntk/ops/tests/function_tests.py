@@ -12,8 +12,8 @@ import numpy as np
 import pytest
 from ..functions import *
 from ...trainer import *
-from .. import constant, parameter, input_variable, placeholder_variable, times, plus
-from .ops_test_utils import compare_lists_of_np_arrays
+from .. import constant, parameter, input_variable, placeholder_variable, times, plus, combine
+from .ops_test_utils import compare_lists_of_np_arrays, AA
 
 def test_variable_forwarding():
     op = constant(value=2, shape=(3,4)) + 1
@@ -126,3 +126,24 @@ def test_getting_output_from_non_existent_node():
 
     with pytest.raises(ValueError):
         sum_output = times_node.forward({x: x0, y: y0}, sum_node.outputs)
+
+
+def test_evaluating_multiple_outputs():
+    input_data = AA([1], np.float32)
+
+    a = input_variable(shape=input_data.shape, name='a')
+    a_plus_1 = a + 1
+    out1 = ((a_plus_1 + 2) - 1) + 1
+    out2 = ((a_plus_1 + 4) - 1) + 2
+    z = combine([out1, out2])
+
+    # create batch
+    input_data.shape = (1, 1) + input_data.shape
+
+    res = z.eval({a: input_data})
+    print(res)
+
+    expected_forward_out1 = [[[4.]]]
+    expected_forward_out2 = [[[7.]]]
+    assert np.array_equal(res[out1.output], expected_forward_out1)
+    assert np.array_equal(res[out2.output], expected_forward_out2)
