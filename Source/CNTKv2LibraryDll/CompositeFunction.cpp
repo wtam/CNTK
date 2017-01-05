@@ -1052,15 +1052,9 @@ namespace CNTK
         if (!computationNode->Is<InputValueBase<ElementType>>())
             LogicError("CompositeFunction::Forward: Illegal to populate value of computation node type other than InputValueBase!");
 
-        std::pair<std::shared_ptr<const Matrix<ElementType>>, MBLayoutPtr> CNTKMatrixAndMBLayout;
-        auto packedValue = dynamic_cast<PackedValue*>(variableValue.second.get());
-        if (packedValue)
-            CNTKMatrixAndMBLayout = packedValue->PackedData<ElementType>();
-        else
-            CNTKMatrixAndMBLayout = Utils::GetCNTKImplMatrixAndMBLayoutFromValueObject<ElementType>(variableValue.first, variableValue.second);
+        std::pair<std::shared_ptr<const Matrix<ElementType>>, MBLayoutPtr> CNTKMatrixAndMBLayout = Utils::GetCNTKImplMatrixAndMBLayoutFromValueObject<ElementType>(variableValue.first, variableValue.second);
 
         MBLayoutPtr layout = CNTKMatrixAndMBLayout.second;
-
         auto& nodeData = computationNode->As<ComputationNode<ElementType>>()->Value();
 
         // Switch the node matrix to the right matrix type
@@ -1101,12 +1095,7 @@ namespace CNTK
     template <typename ElementType>
     /*static*/ void CompositeFunction::PopulateComputationNodeGradient(const std::pair<Variable, ValuePtr>& variableGradient, Microsoft::MSR::CNTK::ComputationNodeBasePtr& computationNode)
     {
-        std::pair<std::shared_ptr<const Matrix<ElementType>>, MBLayoutPtr> CNTKMatrixAndMBLayout;
-        auto packedValue = dynamic_cast<PackedValue*>(variableGradient.second.get());
-        if (packedValue)
-            CNTKMatrixAndMBLayout = packedValue->PackedData<ElementType>();
-        else
-            CNTKMatrixAndMBLayout = Utils::GetCNTKImplMatrixAndMBLayoutFromValueObject<ElementType>(variableGradient.first, variableGradient.second);
+        std::pair<std::shared_ptr<const Matrix<ElementType>>, MBLayoutPtr> CNTKMatrixAndMBLayout = Utils::GetCNTKImplMatrixAndMBLayoutFromValueObject<ElementType>(variableGradient.first, variableGradient.second);
 
         MBLayoutPtr layout = CNTKMatrixAndMBLayout.second;
         auto nodeLayout = computationNode->GetMBLayout();

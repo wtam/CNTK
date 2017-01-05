@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include "PrimitiveFunction.h"
 #include "RecurrentNodes.h"
+#include "Value.h"
 
 using namespace std;
 using namespace Microsoft::MSR::CNTK;
@@ -457,7 +458,7 @@ namespace CNTK
     }
 
     template <typename ElementType>
-    std::pair<std::shared_ptr<const Matrix<ElementType>>, MBLayoutPtr> Utils::GetCNTKImplMatrixAndMBLayoutFromValueObject(const Variable& var, const ValuePtr& value)
+    /*static*/ void Utils::VerifyVariableValueCompatibility(const Variable& var, const ValuePtr& value)
     {
         if (var.GetDataType() != value->GetDataType())
             LogicError("The Variable's DataType %s does not match the corresponding Value's DataType %s", DataTypeName(var.GetDataType()), DataTypeName(value->GetDataType()));
@@ -496,16 +497,29 @@ namespace CNTK
                 AsStringForErrorReporting(varShape).c_str());
         }
 
-        if (numDynamicAxes == 0)
-            return{ value->Data()->GetMatrix<ElementType>(), nullptr };
-
         if (numDynamicAxes > 2)
             LogicError("More than 2 dynamic axis for a variable is currently unsupported");
+    }
 
+    template <typename ElementType>
+    std::pair<std::shared_ptr<const Matrix<ElementType>>, MBLayoutPtr> Utils::GetCNTKImplMatrixAndMBLayoutFromValueObject(const Variable& var, const ValuePtr& value)
+    {
+        VerifyVariableValueCompatibility<ElementType>(var, value);
+
+        auto packedValue = dynamic_cast<PackedValue*>(value.get());
+        if (packedValue)
+            return packedValue->PackedData<ElementType>();
+
+        auto varShape = var.Shape();
+        auto valueShape = value->Shape();
+        auto numDynamicAxes = var.DynamicAxes().size();
         auto mask = value->Mask();
         if ((mask != nullptr) && ((varShape.Rank() + mask->Shape().Rank()) != valueShape.Rank()))
             InvalidArgument("Invalid Value object; the sum of the rank of the mask and data does not equal the Variable's rank + number of dynamic axes");
-        
+
+        if (numDynamicAxes == 0)
+            return{ value->Data()->GetMatrix<ElementType>(), nullptr };
+
         auto getNumTimeStepsAndSequencesFunc = [numDynamicAxes](const NDShape& maskShape, size_t numDynamicAxes) {
             size_t maxNumTimeSteps = 1;
             size_t numSequences = 1;
@@ -814,6 +828,7 @@ namespace CNTK
 
         return GetValueObjectFromCNTKImplMatrixAndMBLayout(var.Shape(), matrix, layout, readOnly);
     }
+
     template void DictionaryValue::AllocateDataPtr<NDShape>(const NDShape& value);
     template void DictionaryValue::AllocateDataPtr<Axis>(const Axis& value);
     template void DictionaryValue::AllocateDataPtr<vector<DictionaryValue>>(const vector<DictionaryValue>& value);
