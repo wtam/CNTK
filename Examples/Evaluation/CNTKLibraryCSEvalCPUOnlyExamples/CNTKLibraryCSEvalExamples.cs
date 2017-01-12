@@ -364,6 +364,6 @@ namespace CNTKLibraryCSEvalExamples
         private static string[] buildInvVocabIndex(string filePath)
         {
             return File.ReadAllLines(filePath);
-        }        
+        }
     }
 }

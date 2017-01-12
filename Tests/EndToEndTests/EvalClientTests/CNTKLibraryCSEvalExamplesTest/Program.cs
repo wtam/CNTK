@@ -10,7 +10,7 @@ using CNTK;
 
 namespace CNTKLibraryCSEvalExamples
 {
-    class program
+    class Program
     {
         static void Main(string[] args)
         {
