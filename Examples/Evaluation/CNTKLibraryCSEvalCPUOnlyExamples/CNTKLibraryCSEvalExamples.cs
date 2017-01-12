@@ -30,7 +30,7 @@ namespace CNTKLibraryCSEvalExamples
             var inputDataMap = new Dictionary<Variable, Value>();
 
             // Load the model.
-            Function modelFunc = Function.LoadModel("z.model");
+            Function modelFunc = Function.LoadModel("z.model", device);
 
             // Get output variable based on name
             Variable outputVar = modelFunc.Outputs.Where(variable => string.Equals(variable.Name, outputName)).Single();
@@ -89,7 +89,7 @@ namespace CNTKLibraryCSEvalExamples
             var inputDataMap = new Dictionary<Variable, Value>();
 
             // Load the model.
-            Function modelFunc = Function.LoadModel("z.model");
+            Function modelFunc = Function.LoadModel("z.model", device);
 
             // Get output variable based on name
             Variable outputVar = modelFunc.Outputs.Where(variable => string.Equals(variable.Name, outputName)).Single();
@@ -160,7 +160,7 @@ namespace CNTKLibraryCSEvalExamples
             var vocabToIndex = buildVocabIndex("ATIS.vocab");
             var indexToVocab = buildInvVocabIndex("ATIS.label");
 
-            Function myFunc = Function.LoadModel("atis.model");
+            Function myFunc = Function.LoadModel("atis.model", device);
 
             Console.WriteLine("Evaluate single sequence using one-hot vector");
 
@@ -240,7 +240,7 @@ namespace CNTKLibraryCSEvalExamples
             var vocabToIndex = buildVocabIndex("ATIS.vocab");
             var indexToVocab = buildInvVocabIndex("ATIS.label");
 
-            Function myFunc = Function.LoadModel("atis.model");
+            Function myFunc = Function.LoadModel("atis.model", device);
 
             Console.WriteLine("Evaluate batch of sequences with variable length using one-hot vector");
 
