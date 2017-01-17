@@ -519,7 +519,7 @@ public:
     bool IsCudaAware() const
     {
 #ifdef __unix__
-        return true;
+        return false;
 #else
         return false;
 #endif
