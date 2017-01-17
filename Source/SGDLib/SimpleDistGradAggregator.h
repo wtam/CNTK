@@ -290,7 +290,14 @@ private:
             assert(numNodesHeadersReceivedFrom == (NumProc() - 1));
         }
 
-        MPI_Bast(headerCPU, headerCPU->Size(), MPI_CHAR, m_mpi->MainNodeRank(), m_mpi->Communicator()) || MpiFail("MPI_Bcast");
+        if (!m_nccl.IsSupported())
+        {
+            MPI_Bcast(headerCPU, headerCPU->Size(), MPI_CHAR, m_mpi->MainNodeRank(), m_mpi->Communicator()) || MpiFail("MPI_Bcast");
+        }
+        else
+        {
+            m_nccl.Broadcast(headerCPU, headerCPU->Size(), MPI_CHAR, m_mpi->MainNodeRank());
+        }
 
         // Wait for the allreduce operations to finish and initiate transfer back to the GPU if needed
         if (!m_nccl.IsSupported())
