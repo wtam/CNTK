@@ -816,31 +816,8 @@ namespace CNTK
         class UniqueDynamicAxesNames
         {
         public:
-            bool RegisterAxisName(const std::wstring& axisName)
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                return m_allKnownDynamicAxisNames.insert(axisName).second;
-            }
-
-            const std::wstring& NewUniqueDynamicAxisName(const std::wstring& axisNamePrefix)
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                if (m_allKnownDynamicAxisNames.find(axisNamePrefix) == m_allKnownDynamicAxisNames.end())
-                {
-                    m_allKnownDynamicAxisNames.insert(axisNamePrefix);
-                    return axisNamePrefix;
-                }
-
-                for (size_t i = 1;; i++)
-                {
-                    auto newDynamicAxisName = axisNamePrefix + std::to_wstring(i);
-                    if (m_allKnownDynamicAxisNames.find(newDynamicAxisName) == m_allKnownDynamicAxisNames.end())
-                    {
-                        m_allKnownDynamicAxisNames.insert(newDynamicAxisName);
-                        return *m_allKnownDynamicAxisNames.find(newDynamicAxisName);
-                    }
-                }
-            }
+            CNTK_API bool RegisterAxisName(const std::wstring& axisName);
+            CNTK_API const std::wstring& NewUniqueDynamicAxisName(const std::wstring& axisNamePrefix);
 
         private:
             std::unordered_set<std::wstring> m_allKnownDynamicAxisNames;
@@ -1639,6 +1616,7 @@ private:
         CNTK_API static Variable Deserialize(const Dictionary& dictionary, const ::CNTK::DeviceDescriptor& device = DeviceDescriptor::UseDefaultDevice());
 
         void SetOwner(Function* ownerFunction);
+        void SetOutputOwner(std::shared_ptr<const Function>& ownerFunction);
 
     private:
 #ifdef SWIGCSHARP
@@ -1652,6 +1630,7 @@ private:
 
     protected:
         VariableFieldsPtr m_dataFields;
+        std::shared_ptr<const Function> m_outputOwnerFunction; // Currently needed for outputs.
 
         static const size_t s_serializationVersion = 1;
     };
@@ -2558,18 +2537,15 @@ namespace CNTK
         ///
         /// Returns the Output variable of 'this' Function. Throws an exception of 'this' Function has more that one output.
         ///
-        Variable Output() const
-        {
-            if (m_outputs.size() > 1)
-                RuntimeError("A Function instance with more than one output cannot be implicitly converted to a Variable");
-
-            return m_outputs[0];
-        }
+        virtual CNTK_API Variable Output() const;
 
         ///
         /// Returns a vector consisting of all Output variables of 'this' Function.
         ///
-        const std::vector<Variable>& Outputs() const { return m_outputs; }
+        std::vector<Variable> Outputs() const
+        {
+            return *(OutputsImpl().get());
+        }
 
         ///
         /// Returns a set comprising of all input variables of 'this' Function's variables that are not of kind 'Parameter' or 'Constant'.
@@ -2690,6 +2666,9 @@ namespace CNTK
 
         CNTK_API std::shared_ptr<std::vector<Variable>> InputsImpl() const;
 
+        CNTK_API std::shared_ptr<std::vector<Variable>> OutputsImpl() const;
+        std::vector<Variable> InnerOutputs() const;
+
         void ValidateOrUpdateOutputs(std::unordered_map<const Function*, size_t>& visitedFunctions, bool& recurrentNodeOutputModified);
 
         static void ReplacePlaceholderInPlace(Variable& var,
@@ -2713,12 +2692,13 @@ namespace CNTK
     public:
         CNTK_API Function(const std::vector<Variable>& inputs, const std::vector<Variable>& outputs, const std::wstring& name = L"", const std::wstring& uid = Internal::GenerateUid(L"UserDefinedFunction"));
 
+    protected:
+        std::vector<Variable> m_outputs;
+
     private:
         CNTK_API Function(const std::vector<Variable>& inputs, const std::vector<Variable>& outputs, Dictionary&& functionConfig, const FunctionPtr& rootFunction, const std::wstring& name, const std::wstring& uid);
 
         std::vector<Variable> m_inputs;
-        std::vector<Variable> m_outputs;
-
         FunctionPtr m_rootFunction; // nullptr for primitive Function instances
         std::wstring m_name;
         std::wstring m_uid;
