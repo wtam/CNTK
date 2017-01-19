@@ -25,6 +25,12 @@ namespace CNTK
         return std::shared_ptr<std::vector<Variable>>(new std::vector<Variable>(std::move(inputs)), [](std::vector<Variable>* ptr) { delete ptr; });
     }
 
+    std::shared_ptr<std::vector<Variable>> Function::OutputsImpl() const
+    {
+        std::vector<Variable> outputs = InnerOutputs();
+        return std::shared_ptr<std::vector<Variable>>(new std::vector<Variable>(std::move(outputs)), [](std::vector<Variable>* ptr) { delete ptr; });
+    }
+
     Function::Function(const std::vector<Variable>& inputs, const std::vector<Variable>& outputs, Dictionary&& functionConfig, const std::wstring& name, const std::wstring& uid)
         : Function(inputs, outputs, std::move(functionConfig), nullptr, name, uid)
     {}
@@ -67,6 +73,28 @@ namespace CNTK
             m_outputs.push_back(outputVar);
             uniqueOutputs.insert(outputVar);
         }
+    }
+
+    Variable Function::Output() const
+    {
+        if (m_outputs.size() > 1)
+            RuntimeError("A Function instance with more than one output cannot be implicitly converted to a Variable");
+
+        auto result = Variable(m_outputs[0]);
+        auto t = shared_from_this();
+        result.SetOutputOwner(t);
+        return result;
+    }
+
+    std::vector<Variable> Function::InnerOutputs() const
+    {
+        std::vector<Variable> result = m_outputs;
+        for (auto& v : result)
+        {
+            auto t = shared_from_this();
+            v.SetOutputOwner(t);
+        }
+        return result;
     }
 
     /*virtual*/ Function::~Function() {}

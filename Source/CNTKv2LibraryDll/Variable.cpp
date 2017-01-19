@@ -86,7 +86,15 @@ namespace CNTK
         if (m_dataFields->m_ownerFunction != nullptr)
             LogicError("Variable::SetOwner: An Output Variable whose owner has previously been set, cannot be reset!");
 
+        if (m_outputOwnerFunction.get() != nullptr && m_outputOwnerFunction.get() == ownerFunction)
+            LogicError("Variable::SetOwner: An Output Variable whose owner has previously been set, cannot be reset!");
+
         m_dataFields->m_ownerFunction = ownerFunction;
+    }
+
+    void Variable::SetOutputOwner(std::shared_ptr<const Function>& ownerFunction)
+    {
+        m_outputOwnerFunction = ownerFunction;
     }
 
     Variable::operator FunctionPtr() const
