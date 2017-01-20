@@ -15,7 +15,7 @@ example_dir = os.path.join(abs_path, "..", "..", "..", "..", "Examples", "Image"
 sys.path.append(example_dir)
 sys.path.append(abs_path)
 
-from cifar_convnet_distributed_test import mpiexec_test, data_set_directory
+from ConvNet_CIFAR10_DataAug_Distributed_test import mpiexec_test, data_set_directory
 
 script_under_test = os.path.join(example_dir, "TrainResNet_CIFAR10_Distributed.py")
 

@@ -159,11 +159,7 @@ def train_and_test(network, trainer, train_source, test_source, progress_printer
 
 
 # Train and evaluate the network.
-<<<<<<< HEAD
-def convnet_cifar10_dataaug(train_data, test_data, mean_data, num_quantization_bits=32, epoch_size = 50000, max_epochs=80, log_to_file=None, num_mbs_per_log=None, gen_heartbeat=False):
-=======
-def convnet_cifar10_dataaug(train_data, test_data, mean_data, num_quantization_bits=32, block_size=3200, warm_up=0, max_epochs=2, log_to_file=None, num_mbs_per_log=None, gen_heartbeat=False):
->>>>>>> Adding more distributed tests for python
+def convnet_cifar10_dataaug(train_data, test_data, mean_data, epoch_size=50000, num_quantization_bits=32, block_size=3200, warm_up=0, max_epochs=2, log_to_file=None, num_mbs_per_log=None, gen_heartbeat=False):
     _cntk_py.set_computation_network_trace_level(0)
 
     progress_printer = ProgressPrinter(
@@ -207,6 +203,7 @@ if __name__=='__main__':
     test_data=os.path.join(data_path, 'test_map.txt')
 
     convnet_cifar10_dataaug(train_data, test_data, mean_data, 
+                            epoch_size=50000,
                             num_quantization_bits=args['quantized_bits'],
                             block_size=args['block_samples'], 
                             warm_up=args['distributed_after'],
