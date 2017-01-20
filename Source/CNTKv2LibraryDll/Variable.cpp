@@ -78,6 +78,14 @@ namespace CNTK
             return nullptr;
     }
 
+    Variable Variable::CopyPreservingOwner() const
+    {
+        Variable result;
+        result.m_outputOwnerFunction = Owner();
+        result.m_dataFields = m_dataFields;
+        return result;
+    }
+
     void Variable::SetOwner(Function* ownerFunction)
     {
         if (Kind() != VariableKind::Output)
@@ -90,11 +98,6 @@ namespace CNTK
             LogicError("Variable::SetOwner: An Output Variable whose owner has previously been set, cannot be reset!");
 
         m_dataFields->m_ownerFunction = ownerFunction;
-    }
-
-    void Variable::SetOutputOwner(std::shared_ptr<const Function>& ownerFunction)
-    {
-        m_outputOwnerFunction = ownerFunction;
     }
 
     Variable::operator FunctionPtr() const

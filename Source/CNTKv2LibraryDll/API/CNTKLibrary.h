@@ -1616,7 +1616,8 @@ private:
         CNTK_API static Variable Deserialize(const Dictionary& dictionary, const ::CNTK::DeviceDescriptor& device = DeviceDescriptor::UseDefaultDevice());
 
         void SetOwner(Function* ownerFunction);
-        void SetOutputOwner(std::shared_ptr<const Function>& ownerFunction);
+
+        Variable CopyPreservingOwner() const;
 
     private:
 #ifdef SWIGCSHARP
@@ -1630,9 +1631,10 @@ private:
 
     protected:
         VariableFieldsPtr m_dataFields;
-        std::shared_ptr<const Function> m_outputOwnerFunction; // Currently needed for outputs.
-
         static const size_t s_serializationVersion = 1;
+
+    private:
+        std::shared_ptr<const Function> m_outputOwnerFunction; // Currently needed for outputs.
     };
 
     // TODO: Variable equality should be based on uids.
@@ -2665,9 +2667,7 @@ namespace CNTK
         }
 
         CNTK_API std::shared_ptr<std::vector<Variable>> InputsImpl() const;
-
         CNTK_API std::shared_ptr<std::vector<Variable>> OutputsImpl() const;
-        std::vector<Variable> InnerOutputs() const;
 
         void ValidateOrUpdateOutputs(std::unordered_map<const Function*, size_t>& visitedFunctions, bool& recurrentNodeOutputModified);
 

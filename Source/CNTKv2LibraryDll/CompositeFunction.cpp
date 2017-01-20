@@ -113,18 +113,17 @@ namespace CNTK
        
         std::vector<DictionaryValue>  functionDictionaries;
         std::unordered_set<std::wstring> outputUids;
-        for (const auto& primitiveFunciton : topoSortedPrimitiveFunctions)
+        for (const auto& primitiveFunction : topoSortedPrimitiveFunctions)
         {
-            auto outputs = primitiveFunciton->Outputs();
-            for (const auto& output : outputs)
+            for (const auto& output : primitiveFunction->Outputs())
             {
                 if (outputUids.find(output.Uid()) != outputUids.end())
                     LogicError("Output uids of all primitive functions in a function graph must be unique");
 
-                outputUids.insert(primitiveFunciton->Uid());
+                outputUids.insert(primitiveFunction->Uid());
             }
 
-            functionDictionaries.push_back(primitiveFunciton->Serialize());
+            functionDictionaries.push_back(primitiveFunction->Serialize());
         }
 
         dict[functionsKey] = std::move(functionDictionaries);
@@ -252,9 +251,8 @@ namespace CNTK
                             "Reproducibility not guaranteed.", primitiveFunction->OpName().c_str(), version);
                 }
             }
-            
-            auto outputs = root->Outputs();
-            for (const auto& output : outputs)
+
+            for (const auto& output : root->Outputs())
             {
                 const auto& it = uidToInputMap.find(output.Uid());
                 if (it != uidToInputMap.end())
@@ -323,8 +321,7 @@ namespace CNTK
             auto primitiveFunction = dynamic_cast<const PrimitiveFunction*>(function.get());
             if (primitiveFunction->IsStateful())
             {
-                auto outputs = function->Outputs();
-                for (const auto& output : outputs)
+                for (const auto& output : function->Outputs())
                 {
                     auto node = m_variableToNodeMap.at(output);
                     auto attributes = function->Attributes();
@@ -1315,7 +1312,7 @@ namespace CNTK
             GetComputationNetwork<double>(computeDevice, outputsToRetainBackwardStateFor, requestedOutputVariables, true);
         else
             InvalidArgument("Unsupported DataType %s", DataTypeName(dataType));
-        
+
         std::unordered_set<Variable> functionOutputs(m_outputs.begin(), m_outputs.end());
         std::vector<ComputationNodeBasePtr> outputsToEvaluate;
         std::unordered_set<Variable> requiredArguments;
