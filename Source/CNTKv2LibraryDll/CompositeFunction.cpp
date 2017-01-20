@@ -115,7 +115,8 @@ namespace CNTK
         std::unordered_set<std::wstring> outputUids;
         for (const auto& primitiveFunciton : topoSortedPrimitiveFunctions)
         {
-            for (const auto& output : primitiveFunciton->Outputs())
+            auto outputs = primitiveFunciton->Outputs();
+            for (const auto& output : outputs)
             {
                 if (outputUids.find(output.Uid()) != outputUids.end())
                     LogicError("Output uids of all primitive functions in a function graph must be unique");
@@ -251,8 +252,9 @@ namespace CNTK
                             "Reproducibility not guaranteed.", primitiveFunction->OpName().c_str(), version);
                 }
             }
-
-            for (const auto& output : root->Outputs())
+            
+            auto outputs = root->Outputs();
+            for (const auto& output : outputs)
             {
                 const auto& it = uidToInputMap.find(output.Uid());
                 if (it != uidToInputMap.end())
@@ -321,7 +323,8 @@ namespace CNTK
             auto primitiveFunction = dynamic_cast<const PrimitiveFunction*>(function.get());
             if (primitiveFunction->IsStateful())
             {
-                for (const auto& output : function->Outputs())
+                auto outputs = function->Outputs();
+                for (const auto& output : outputs)
                 {
                     auto node = m_variableToNodeMap.at(output);
                     auto attributes = function->Attributes();
@@ -1312,8 +1315,8 @@ namespace CNTK
             GetComputationNetwork<double>(computeDevice, outputsToRetainBackwardStateFor, requestedOutputVariables, true);
         else
             InvalidArgument("Unsupported DataType %s", DataTypeName(dataType));
-
-        std::unordered_set<Variable> functionOutputs(this->Outputs().begin(), this->Outputs().end());
+        
+        std::unordered_set<Variable> functionOutputs(m_outputs.begin(), m_outputs.end());
         std::vector<ComputationNodeBasePtr> outputsToEvaluate;
         std::unordered_set<Variable> requiredArguments;
         for (auto outputVarValuePair : outputs)

@@ -19,7 +19,7 @@ namespace CNTK
             m_composite(composite), m_blockOpName(blockOpName)
         {
             auto updatedOutputs = GetOutputVariables(true);
-            auto currentOutputs = Outputs();
+            auto currentOutputs = m_outputs;
             for (size_t i = 0; i < currentOutputs.size(); ++i)
             {
                 auto newOutputVar = updatedOutputs[i];
@@ -162,7 +162,7 @@ namespace CNTK
             m_composite->ReplacePlaceholders(replacementMap);
 
             // Substitute any placeholder replacements in the outputs map
-            auto outputs = Outputs();
+            auto outputs = m_outputs;
             for (auto output : outputs)
             {
                 if (replacementMap.find(output.BlockFunctionVariableMapping()) != replacementMap.end())

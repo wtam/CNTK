@@ -643,6 +643,34 @@ void TestRecurrenceShapeInference()
     testShapeInferenceInRecurrence(2, 2);
 }
 
+void TestFunctionOutputs(const DeviceDescriptor& device)
+{
+    size_t inputDim = 1;
+    size_t outputDim = 2;
+    const std::wstring timesFuncName = L"TimesFunc";
+    const std::wstring plusFuncName = L"PlusFunc";
+    const std::wstring combineFuncName = L"CombineFunc";
+
+    Variable o1, o2;
+    {
+        auto inputVar = InputVariable({ inputDim }, false, DataType::Float, true, L"features", { Axis::NewUniqueDynamicAxis(L"inputSequence"), Axis::DefaultBatchAxis() });
+        auto plusParam = CNTK::Parameter(CNTK::NDArrayView::RandomUniform<float>({ inputDim }, -0.05, 0.05, 1, device));
+        auto plusFunc = CNTK::Plus(plusParam, inputVar, plusFuncName);
+
+        auto timesParam = CNTK::Parameter(CNTK::NDArrayView::RandomUniform<float>({ outputDim, inputDim }, -0.05, 0.05, 1, device));
+        auto timesFunc = CNTK::Times(timesParam, plusFunc, timesFuncName);
+
+        o1 = plusFunc->Output();
+        o2 = timesFunc->Output();
+
+        // Here all function smart pointers going out of scope.
+    }
+
+    FunctionPtr combine = CNTK::Combine({ o1, o2 }, combineFuncName);
+    auto args = combine->Arguments();
+}
+
+
 void TestOuputVariableName(const DeviceDescriptor& device)
 {
     size_t inputDim = 10;
@@ -755,5 +783,6 @@ void FunctionTests()
         TestTranspose(3, 1, 2, DeviceDescriptor::GPUDevice(0));
 
     TestOuputVariableName(DeviceDescriptor::CPUDevice());
+    TestFunctionOutputs(DeviceDescriptor::CPUDevice());
 }
 
