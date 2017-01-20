@@ -483,13 +483,6 @@
 
 %typemap(cscode) CNTK::DeviceDescriptor %{
 
-    // Remove this for now, will be added back after we find a good solution here:
-    // This is a reference to prevent premature garbage collection 
-    // and resulting in dangling access to device.
-    // private static DeviceDescriptorVector deviceVector;
-    // private static System.Collections.Generic.List<DeviceDescriptor> deviceList;
-    // private static System.Object deviceVectorInitLock = new System.Object();
-
     public uint Id
     {
         get { return GetId(); }
@@ -505,23 +498,10 @@
         get { return GetCPUDevice(); }
     }
 
-    //public static System.Collections.Generic.List<DeviceDescriptor> AllDevices()
-    //{
-    //    lock (deviceVectorInitLock)
-    //    {
-    //        // TODO: support devices added/removed after creation. 
-    //        if (deviceVector == null)
-    //        {
-    //            deviceVector = GetAllDevices();
-    //            deviceList = new System.Collections.Generic.List<DeviceDescriptor>(deviceVector.Count);
-    //            foreach (var d in deviceVector)
-    //            {
-    //                deviceList.Add(d);
-    //            }
-    //        }
-    //    }
-    //    return deviceList;
-    //}
+    public static System.Collections.Generic.IEnumerable<DeviceDescriptor> AllDevices()
+    {
+        return GetAllDevices();
+    }
 
     public override bool Equals(System.Object obj)
     {
@@ -704,10 +684,6 @@
 
     // This is a reference to prevent premature garbage collection 
     // and resulting in dangling access to Variable.
-    private VariableVector argumentVector;
-    private VariableVector outputVector;
-    private System.Collections.Generic.List<Variable> argumentList;
-    private System.Collections.Generic.List<Variable> outputList;
     private UnorderedMapVariableValuePtr outMap = new UnorderedMapVariableValuePtr();
 
     public string Name
@@ -734,21 +710,11 @@
         }
     }
 
-    public System.Collections.Generic.List<Variable> Outputs
+    public System.Collections.Generic.IEnumerable<Variable> Outputs
     {
         get 
         {
-            // Assuming that outputs of Function can not be changed after creation.
-            if (outputVector == null)
-            {
-                outputVector = GetOutputs();
-                outputList = new System.Collections.Generic.List<Variable>(outputVector.Count);
-                foreach (var v in outputVector)
-                {
-                    outputList.Add(v);
-                }
-            }
-            return outputList;
+            return GetOutputs();
         }
     }
 
@@ -777,23 +743,10 @@
         get { return _IsBlock(); }
     }
 
-    public System.Collections.Generic.List<Variable> Arguments
+    public System.Collections.Generic.IEnumerable<Variable> Arguments
     {
-        get
-        {
-            // Assuming that arguments of Function can not be changed after creation.
-            if (argumentVector == null)
-            {
-                argumentVector = GetArguments();
-                argumentList = new System.Collections.Generic.List<Variable>(argumentVector.Count);
-                foreach (var v in argumentVector)
-                {
-                    argumentList.Add(v);
-                }
-            }
-            return argumentList;
-        }
-    }
+        return GetArguments();
+     }
 
     // Todo: do we have a better place to put this function?
     public static Function Combine(System.Collections.Generic.IEnumerable<Variable> outputVariable)
