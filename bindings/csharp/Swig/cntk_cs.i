@@ -505,16 +505,6 @@
         get { return GetCPUDevice(); }
     }
 
-    public static DeviceDescriptor DefaultDevice
-    {
-        get { return GetDefaultDevice(); }
-    }
-
-    public static DeviceDescriptor BestDevice
-    {
-        get { return GetBestDevice(); }
-    }
-
     //public static System.Collections.Generic.List<DeviceDescriptor> AllDevices()
     //{
     //    lock (deviceVectorInitLock)
@@ -532,18 +522,6 @@
     //    }
     //    return deviceList;
     //}
-
-    public static System.Collections.Generic.List<DeviceDescriptor> AllDevices()
-    {
-        var devices = GetAllDevices();
-        var ret = new System.Collections.Generic.List<DeviceDescriptor>(devices.Count);
-        foreach (var d in devices)
-        {
-            ret.Add(d);
-        }
-        return ret;
-    }
->>>>>>> origin/zhouwang/csbinding
 
     public override bool Equals(System.Object obj)
     {
