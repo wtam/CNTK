@@ -116,7 +116,6 @@ def test_ext_eval_5_times():
     # No batch dimension since we have no input
     assert np.allclose(result, ((p_init*np.ones_like(result))+3)*2*2)
 
-# TODO change to real training example
 def test_ext_train():
     dim = 4
 
@@ -140,6 +139,7 @@ def test_ext_train():
     assert m.forward_calls == m.backward_calls == 100
 
 @pytest.mark.parametrize("payload", [
+    (np.asarray([[[1,2,3.0]]]),),
     (77,),
     ("a", 2),
     (),
@@ -158,10 +158,11 @@ def test_ext_backpropstate(payload):
                 outputs[k] = arguments[0]
                 break
 
-            return self.payload, outputs
+            # return self.payload, outputs
+            return [5,], outputs
 
         def backward(self, state, root_gradients, variables):
-            assert state == self.payload
+            # assert state == self.payload
             for rk, rv in root_gradients.items():
                 break
             for var_key in variables:
@@ -172,8 +173,8 @@ def test_ext_backpropstate(payload):
     dim = 4
 
     p = parameter(shape=(dim,), init=10)
-    i = input_variable(dim, needs_gradient=True, name='i_var')
-    m = TestBackPropState(i, payload)
+    in1 = input_variable(dim, needs_gradient=True, name='i_var')
+    m = TestBackPropState(in1, payload)
     z = m+p
 
     momentum_time_constant = momentum_as_time_constant_schedule(1100)
@@ -182,9 +183,12 @@ def test_ext_backpropstate(payload):
             [momentum_sgd(z.parameters, lr_per_sample, momentum_time_constant,
                 True)])
 
-    i = 0
-    input_data = np.random.rand(dim)
-    trainer.train_minibatch([input_data])
+    print(payload)
+
+    for i in range(100):
+        print(i)
+        input_data = np.random.rand(dim)
+        trainer.train_minibatch({in1:[input_data]})
 
 class LambdaFunc(UserFunction):
     def __init__(self,
