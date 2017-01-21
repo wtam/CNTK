@@ -1,9 +1,16 @@
-from __future__ import print_function
+# Copyright (c) Microsoft. All rights reserved.
+# Licensed under the MIT license. See LICENSE.md file in the project root
+# for full license information.
+# ==============================================================================
+
+"""
+Unit tests for function extension
+"""
+
+from __future__ import division, print_function
 import numpy as np
-import sys
-import os
+
 from cntk import *
-from cntk.device import cpu, set_default_device
 from cntk.learner import *
 from cntk.ops import *
 from cntk.ops.functions import UserFunction
@@ -41,7 +48,6 @@ def dense_layer(input, output_dim, nonlinearity):
     global my_sig_instance
     r = linear_layer(input, output_dim)
     r = nonlinearity(r)
-    print("appending %s"%r)
     my_sig_instance.append(r)
     return r
 
@@ -105,46 +111,11 @@ def train(nonlinearity):
         batchsize, loss, error = print_training_progress(trainer, i,
                                                          training_progress_output_freq, verbose=0)
         if not (loss == "NA" or error =="NA"):
-            print(batchsize, loss, error)
             losses.append(loss)
             errors.append(error)
 
     return losses, errors
 
-class Plus3Func(UserFunction):
-    def __init__(self, arg, name='f1'):
-        outputs = [output_variable(arg.shape, arg.dtype, arg.dynamic_axes)]
-        super(Plus3Func, self).__init__([arg], outputs,
-                name=name)
-
-        self.forward_calls = 0
-        self.backward_calls = 0
-
-    def forward(self, arguments, outputs, device=None, outputs_to_retain=None):
-        assert len(self.inputs)==1
-        assert len(outputs)==1
-
-        for k in outputs:
-            outputs[k] = arguments[0] + 3
-            break
-
-        self.forward_calls += 1
-
-        return None, outputs
-
-    def backward(self, state, root_gradients, variables):
-        assert len(root_gradients) == 1
-        assert len(variables) == 1
-        import ipdb;ipdb.set_trace()
-
-        for rk, rv in root_gradients.items():
-            break
-        for var_key in variables:
-            break
-
-        self.backward_calls += 1
-
-        variables[var_key] = rv
 
 class MySigmoid(UserFunction):
     def __init__(self, arg, name='MySigmoid'):
@@ -152,28 +123,16 @@ class MySigmoid(UserFunction):
         super(MySigmoid, self).__init__([arg], outputs,
                 name=name)
 
-    def _sigmoid(self, x):
-        return 1/(1+np.exp(-x))
-
     def forward(self, arguments, outputs, device=None, outputs_to_retain=None):
-        assert len(self.inputs)==1
-        assert len(outputs)==1
-
         for k in outputs:
-            sigmoid_x = self._sigmoid(arguments[0])
+            sigmoid_x = 1/(1+np.exp(-arguments[0]))
             outputs[k] = sigmoid_x
             break
 
-        print(sigmoid_x)
         return sigmoid_x, outputs
 
     def backward(self, state, root_gradients, variables):
-        print("state=")
-        print(state)
-        assert len(root_gradients) == 1
-        assert len(variables) == 1
-
-        sigmoid_x = 1
+        sigmoid_x = state
 
         for rk, rv in root_gradients.items():
             break
@@ -182,44 +141,11 @@ class MySigmoid(UserFunction):
 
         variables[var_key] = rv * sigmoid_x * (1 - sigmoid_x)
 
-    def __del__(self):
-        print("__del__")
-
 def test_ext_user_sigmoid():
+    np.random.seed(0)
     act_losses, act_errors = train(MySigmoid)
-    # exp_losses, exp_errors = train(sigmoid)
-    # assert exp_losses == act_losses
-    # assert exp_errors == act_errors
+    np.random.seed(0)
+    exp_losses, exp_errors = train(sigmoid)
+    assert np.allclose(exp_losses, act_losses)
+    assert np.allclose(exp_errors, act_errors)
 
-def test_ext_train_sigmoid():
-    dim = 4
-
-    label_input = input_variable(1, needs_gradient=True, name='l_var')
-    p = parameter(shape=(dim,), init=10)
-    data_input = input_variable(dim, needs_gradient=True, name='i_var')
-    intermediate = p*data_input
-    m = MySigmoid(intermediate)
-    # m = sigmoid(intermediate)
-    # m = Plus3Func(intermediate)
-    z = m+0
-
-    lr_per_sample = learning_rate_schedule(0.007, UnitType.sample)
-    loss = squared_error(z, label_input)
-    trainer = Trainer(z, loss, loss+0, \
-            [sgd(z.parameters, lr_per_sample)])
-
-    i = 0
-    import threading
-    while i<1000:
-        print(i)
-        i+=1
-        input_data = np.random.rand(dim)
-        label_data = np.asarray([np.sum(input_data)>1], dtype=int)
-        trainer.train_minibatch({data_input:[input_data], label_input:[label_data]})
-
-        batchsize, loss, error = print_training_progress(trainer, i, 10, verbose=0)
-        if not (loss == "NA" or error =="NA"):
-            print(batchsize, loss, error)
-
-if __name__ == '__main__':
-    test_ext_user_sigmoid()

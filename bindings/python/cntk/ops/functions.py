@@ -93,24 +93,23 @@ class Function(cntk_py.Function):
         return self(other)
 
     def __getattr__(self, name):
+        # If something is not found in Function, look it up in its output, if
+        # it has only one.
+        if name.startswith('_') or \
+                name in ['outputs', 'output', 'this'] or \
+                len(self.__getattribute__('outputs'))!=1:
+            # These should not be looked up in self's output.
+            # 'outputs' and 'output' are required to fetch the attribute for 
+            # in the Variable.
+            # 'this' is required for Swig and needs to be thrown if the
+            # object is created the first time.
+            raise AttributeError("'%s' object has no attribute '%s'" %
+                    (type(self), name))
         try:
-            return self.__dict__[name]
-        except KeyError:
-            # If name is a member of self's single output, then we relay to
-            # that.
-            if name in ['outputs', 'output', 'this']:
-                # 'outputs' and 'output' are required to fetch the attribute for 
-                # in the Variable.
-                # 'this' is required for Swig and needs to be thrown if the
-                # object is created the first time.
-                # All others we try to find in self.output.
-                raise
-
-            if len(self.outputs) == 1 and hasattr(self.output, name):
-                return getattr(self.output, name)
-            else:
-                raise AttributeError("'%s' object has no attribute '%s'" %
-                        (type(self), name))
+            return getattr(self.__getattribute__('output'), name)
+        except AttributeError:
+            raise AttributeError("'%s' object has no attribute '%s'" %
+                    (type(self), name))
 
 
     @property
@@ -652,6 +651,12 @@ class UserFunction(Function):
                 raise ValueError('expected Variable, but got "%s"'%type(i))
 
         super(Function, self).__init__(var_inputs, outputs, name)
+
+        # Memory management for user defined functions has to be controlled by
+        # the C++ side. For more information:
+        # http://www.swig.org/Doc3.0/Python.html#Python_nn35
+        self.__disown__()
+
 
     def _forward(self, arguments, outputs, device=None, outputs_to_retain=None):
         '''
