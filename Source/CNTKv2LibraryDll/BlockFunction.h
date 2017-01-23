@@ -19,18 +19,17 @@ namespace CNTK
             m_composite(composite), m_blockOpName(blockOpName)
         {
             auto updatedOutputs = GetOutputVariables(true);
-            auto currentOutputs = m_outputs;
-            for (size_t i = 0; i < currentOutputs.size(); ++i)
+            for (size_t i = 0; i < m_outputs.size(); ++i)
             {
                 auto newOutputVar = updatedOutputs[i];
-                auto currentOutputVar = currentOutputs[i];
+                auto currentOutputVar = m_outputs[i];
                 Function::ValidateOrUpdateOutput(currentOutputVar, newOutputVar, true);
                 currentOutputVar.m_dataFields->m_name = newOutputVar.Name();
             }
 
             auto compositeOutputs = composite->Outputs();
-            for (size_t i = 0; i < currentOutputs.size(); ++i)
-                currentOutputs[i].m_dataFields->m_blockFunctionVariableMapping = compositeOutputs[i];
+            for (size_t i = 0; i < m_outputs.size(); ++i)
+                m_outputs[i].m_dataFields->m_blockFunctionVariableMapping = compositeOutputs[i];
         }
 
         virtual const std::wstring& OpName() const override { return m_blockOpName; }

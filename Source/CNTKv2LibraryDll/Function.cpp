@@ -30,7 +30,7 @@ namespace CNTK
         std::vector<Variable> outputs;
         for (auto& v : m_outputs)
         {
-            outputs.push_back(v.CopyPreservingOwner());
+            outputs.push_back(v.OwnerPreservingCopy());
         }
         return std::shared_ptr<std::vector<Variable>>(new std::vector<Variable>(std::move(outputs)), [](std::vector<Variable>* ptr) { delete ptr; });
     }
@@ -89,7 +89,7 @@ namespace CNTK
         if (m_outputs.size() > 1)
             RuntimeError("A Function instance with more than one output cannot be implicitly converted to a Variable");
 
-        return Variable(m_outputs.front().CopyPreservingOwner());
+        return Variable(m_outputs.front().OwnerPreservingCopy());
     }
 
     /*virtual*/ Function::~Function() {}

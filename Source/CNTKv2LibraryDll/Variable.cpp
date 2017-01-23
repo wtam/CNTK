@@ -78,7 +78,7 @@ namespace CNTK
             return nullptr;
     }
 
-    Variable Variable::CopyPreservingOwner() const
+    Variable Variable::OwnerPreservingCopy() const
     {
         Variable result;
         result.m_outputOwnerFunction = Owner();

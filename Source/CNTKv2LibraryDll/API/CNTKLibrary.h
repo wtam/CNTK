@@ -1617,7 +1617,7 @@ private:
 
         void SetOwner(Function* ownerFunction);
 
-        Variable CopyPreservingOwner() const;
+        Variable OwnerPreservingCopy() const;
 
     private:
 #ifdef SWIGCSHARP

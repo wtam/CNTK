@@ -671,35 +671,26 @@ void TestFunctionOutputs(const DeviceDescriptor& device)
 
     // Recurrent
     {
-        std::vector<Variable> o;
+        FunctionPtr f;
         {
             auto stateFwd = PlaceholderVariable(L"p1");
-            auto prevState = PastValue(stateFwd);
 
             auto placeHolder = PlaceholderVariable(L"p2");
             auto abs = Abs(placeHolder);
-            o.push_back(abs->Outputs().front());
 
-            auto abs2 = Abs(abs);
-            o.push_back(abs2->Outputs().front());
-
-            auto z = abs2->Clone(ParameterCloningMethod::Share, { { placeHolder, prevState} });
-            o.push_back(z->Outputs().front());
-
+            auto z = abs->Clone(ParameterCloningMethod::Share, { { placeHolder, PastValue(stateFwd)->Output() } });
             auto newState = z->ReplacePlaceholders({ {stateFwd, z->Output() } });
+            f = newState;
         }
 
-        for (auto& output : o)
+        auto args = f->Output().Owner()->Arguments();
+        for (auto a : args)
         {
-            for (auto a : output.Owner()->Arguments())
-            {
-                if (a.Name() == L"")
-                    RuntimeError("Unexpected name");
-            }
+            if (a.Name() == L"" || a.Owner()->Name() == L"")
+                RuntimeError("Unexpected name");
         }
     }
 }
-
 
 void TestOuputVariableName(const DeviceDescriptor& device)
 {
