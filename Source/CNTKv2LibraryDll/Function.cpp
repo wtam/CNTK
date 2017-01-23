@@ -48,6 +48,11 @@ namespace CNTK
         for (auto inputVar : inputs)
         {
             m_inputs.push_back(inputVar);
+            if (m_inputs.back().m_outputOwnerFunction != nullptr)
+            {
+                // Nuke the owner ptr to allow release of cyclic graphs.
+                m_inputs.back().m_outputOwnerFunction = nullptr;
+            }
 
             if (!inputVar.IsInput() &&
                 !inputVar.IsOutput() &&

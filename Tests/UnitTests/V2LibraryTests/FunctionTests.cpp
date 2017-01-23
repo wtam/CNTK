@@ -645,29 +645,59 @@ void TestRecurrenceShapeInference()
 
 void TestFunctionOutputs(const DeviceDescriptor& device)
 {
-    size_t inputDim = 1;
-    size_t outputDim = 2;
-    const std::wstring timesFuncName = L"TimesFunc";
-    const std::wstring plusFuncName = L"PlusFunc";
-    const std::wstring combineFuncName = L"CombineFunc";
-
-    Variable o1, o2;
+    // Simple
     {
-        auto inputVar = InputVariable({ inputDim }, false, DataType::Float, true, L"features", { Axis::NewUniqueDynamicAxis(L"inputSequence"), Axis::DefaultBatchAxis() });
-        auto plusParam = CNTK::Parameter(CNTK::NDArrayView::RandomUniform<float>({ inputDim }, -0.05, 0.05, 1, device));
-        auto plusFunc = CNTK::Plus(plusParam, inputVar, plusFuncName);
+        Variable o1, o2;
+        {
+            size_t inputDim = 1;
+            size_t outputDim = 2;
 
-        auto timesParam = CNTK::Parameter(CNTK::NDArrayView::RandomUniform<float>({ outputDim, inputDim }, -0.05, 0.05, 1, device));
-        auto timesFunc = CNTK::Times(timesParam, plusFunc, timesFuncName);
+            auto inputVar = InputVariable({ inputDim }, false, DataType::Float, true, L"features", { Axis::NewUniqueDynamicAxis(L"inputSequence"), Axis::DefaultBatchAxis() });
+            auto plusParam = CNTK::Parameter(CNTK::NDArrayView::RandomUniform<float>({ inputDim }, -0.05, 0.05, 1, device));
+            auto plusFunc = CNTK::Plus(plusParam, inputVar);
 
-        o1 = plusFunc->Output();
-        o2 = timesFunc->Output();
+            auto timesParam = CNTK::Parameter(CNTK::NDArrayView::RandomUniform<float>({ outputDim, inputDim }, -0.05, 0.05, 1, device));
+            auto timesFunc = CNTK::Times(timesParam, plusFunc);
 
-        // Here all function smart pointers going out of scope.
+            o1 = plusFunc->Output();
+            o2 = timesFunc->Output();
+
+            // Here all function smart pointers going out of scope.
+        }
+
+        FunctionPtr combine = CNTK::Combine({ o1, o2 });
+        auto args = combine->Arguments();
     }
 
-    FunctionPtr combine = CNTK::Combine({ o1, o2 }, combineFuncName);
-    auto args = combine->Arguments();
+    // Recurrent
+    {
+        std::vector<Variable> o;
+        {
+            auto stateFwd = PlaceholderVariable(L"p1");
+            auto prevState = PastValue(stateFwd);
+
+            auto placeHolder = PlaceholderVariable(L"p2");
+            auto abs = Abs(placeHolder);
+            o.push_back(abs->Outputs().front());
+
+            auto abs2 = Abs(abs);
+            o.push_back(abs2->Outputs().front());
+
+            auto z = abs2->Clone(ParameterCloningMethod::Share, { { placeHolder, prevState} });
+            o.push_back(z->Outputs().front());
+
+            auto newState = z->ReplacePlaceholders({ {stateFwd, z->Output() } });
+        }
+
+        for (auto& output : o)
+        {
+            for (auto a : output.Owner()->Arguments())
+            {
+                if (a.Name() == L"")
+                    RuntimeError("Unexpected name");
+            }
+        }
+    }
 }
 
 
