@@ -69,14 +69,13 @@ def print_training_progress(trainer, mb, frequency):
 
     return mb, training_loss, eval_error
 
-def train(nonlinearity):
+def train(nonlinearity, num_hidden_layers=2):
     learning_rate = 0.5
     lr_schedule = learning_rate_schedule(learning_rate, UnitType.minibatch)
 
     mysamplesize = 64
     features, labels = generate_random_data_sample(mysamplesize, input_dim, num_output_classes)
 
-    num_hidden_layers = 2
     hidden_layers_dim = 50
 
     input = input_variable((input_dim), np.float32)
@@ -93,7 +92,7 @@ def train(nonlinearity):
 
 
     minibatch_size = 25
-    num_samples = 20000
+    num_samples = 2500
     num_minibatches_to_train = num_samples / minibatch_size
 
     training_progress_output_freq = 20
@@ -147,3 +146,19 @@ def test_ext_user_sigmoid():
     assert np.allclose(exp_losses, act_losses)
     assert np.allclose(exp_errors, act_errors)
 
+def measure_runtime()
+    import timeit
+    np.random.seed(0)
+    for num_hidden_layers in [1,2,4,8,16]:
+        t = timeit.Timer('train(MySigmoid, %i)'%num_hidden_layers, 
+                setup="from __main__ import train, MySigmoid")
+        timings_my_sigmoid = t.repeat(number=10)
+        np.random.seed(0)
+        t = timeit.Timer('train(sigmoid, %i)'%num_hidden_layers, 
+            setup="from __main__ import train, sigmoid")
+        timings_sigmoid = t.repeat(number=10)
+
+        print("%i\t%.2f\t%.2f"%(num_hidden_layers, min(timings_my_sigmoid), min(timings_sigmoid)))
+
+if __name__=='__main__':
+    measure_runtime()
