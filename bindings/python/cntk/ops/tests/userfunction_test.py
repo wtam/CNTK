@@ -50,9 +50,6 @@ class Plus3Func(UserFunction):
 
         variables[var_key] = rv
 
-    def __del__(self):
-        print('Plus3Func.__del__')
-
 def test_ext_eval_1():
     dim = 4
     p = parameter(shape=(dim,), init=10, name='p')

@@ -59,15 +59,13 @@ def fully_connected_classifier_net(input, num_output_classes, hidden_layer_dim,
     r = linear_layer(h, num_output_classes)
     return r
 
-def print_training_progress(trainer, mb, frequency, verbose=1):
+def print_training_progress(trainer, mb, frequency):
     training_loss = "NA"
     eval_error = "NA"
 
     if mb%frequency == 0:
         training_loss = get_train_loss(trainer)
         eval_error = get_train_eval_criterion(trainer)
-        if verbose:
-            print ("Minibatch: {}, Train Loss: {}, Train Error: {}".format(mb, training_loss, eval_error))
 
     return mb, training_loss, eval_error
 
@@ -109,7 +107,7 @@ def train(nonlinearity):
         # Specify the input variables mapping in the model to actual minibatch data for training
         trainer.train_minibatch({input : features, label : labels})
         batchsize, loss, error = print_training_progress(trainer, i,
-                                                         training_progress_output_freq, verbose=0)
+                                                         training_progress_output_freq)
         if not (loss == "NA" or error =="NA"):
             losses.append(loss)
             errors.append(error)
