@@ -206,6 +206,11 @@ namespace CNTK
             for (auto& inputVar : m_inputs)
             {
                 ReplacePlaceholderInPlace(inputVar, placeholderReplacements, replacedPlaceholders);
+                if (inputVar.m_outputOwnerFunction != nullptr)
+                {
+                    // Nuke the owner ptr to allow release of cyclic graphs.
+                    inputVar.m_outputOwnerFunction = nullptr;
+                }
 
                 if (inputVar.IsOutput() && (visitedFunctions.find(inputVar.Owner().get()) == visitedFunctions.end()))
                     inputVar.Owner()->ReplacePlaceholdersInPlace(placeholderReplacements, visitedFunctions, replacedPlaceholders);
