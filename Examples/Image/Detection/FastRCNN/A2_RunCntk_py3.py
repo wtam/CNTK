@@ -32,7 +32,7 @@ ROILABELS_FILENAME_POSTFIX = '.roilabels.txt'
 
 
 # model specific variables
-use_model = "VGG"
+use_model = "AlexNet"
 
 if (use_model == "AlexNet"):
     model_file = "../../../../../PretrainedModels/AlexNet.model"
@@ -40,13 +40,14 @@ if (use_model == "AlexNet"):
     conv5_node_name = "conv5.y"  # "z.x._.x._.x.x_output"
     pool3_node_name = "pool3"  # "z.x._.x._.x_output"
     h2d_node_name = "h2_d"  # "z.x_output"
+    roi_dim = 6
 elif (use_model == "VGG"):
     model_file = "../../../../../PretrainedModels/VGG19_legacy.model"
     feature_node_name = "data"
     conv5_node_name = "relu5_4"  # "z.x._.x._.x.x_output"
     pool3_node_name = "pool5"  # "z.x._.x._.x_output"
     h2d_node_name = "drop7"  # "z.x_output"
-
+    roi_dim = 7
 
 # Helper to print all node names
 def print_all_node_names(model_file, is_BrainScript=True):
@@ -129,7 +130,7 @@ def frcn_predictor(features, rois, num_classes):
     # create Fast R-CNN model
     feat_norm = features - Constant(114)
     conv_out  = conv_layers(feat_norm)
-    roi_out   = roipooling(conv_out, rois, (6,6)) # rename to roi_max_pooling
+    roi_out   = roipooling(conv_out, rois, (roi_dim,roi_dim)) # rename to roi_max_pooling
     fc_out    = fc_layers(roi_out)
 
     # z = Dense((rois[0], num_classes), map_rank=1)(fc_out) --> map_rank=1 is not yet supported
@@ -203,6 +204,8 @@ def frcn_grocery(base_path, debug_output=False):
                 }
         trainer.train_minibatch(arguments)
         print_training_progress(trainer, i, training_progress_output_freq)
+
+    trainer.save_checkpoint(os.path.join(abs_path, "Output", "frcn_model_py.model"))
 
     #####
     # testing
