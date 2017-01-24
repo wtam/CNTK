@@ -18,7 +18,7 @@ from cntk.ops import roipooling
 from cntk.ops.functions import CloneMethod
 from cntk.io import ReaderConfig, ImageDeserializer, CTFDeserializer, StreamConfiguration
 from cntk.initializer import glorot_uniform
-from cntk.graph import find_nodes_by_name
+from cntk.graph import find_by_name, depth_first_search
 import PARAMETERS
 locals().update(importlib.import_module("PARAMETERS").__dict__)
 
@@ -31,8 +31,36 @@ ROIS_FILENAME_POSTFIX = '.rois.txt'
 ROILABELS_FILENAME_POSTFIX = '.roilabels.txt'
 
 
-def print_training_progress(trainer, mb, frequency):
+# model specific variables
+use_model = "VGG"
 
+if (use_model == "AlexNet"):
+    model_file = "../../../../../PretrainedModels/AlexNet.model"
+    feature_node_name = "features"
+    conv5_node_name = "conv5.y"  # "z.x._.x._.x.x_output"
+    pool3_node_name = "pool3"  # "z.x._.x._.x_output"
+    h2d_node_name = "h2_d"  # "z.x_output"
+elif (use_model == "VGG"):
+    model_file = "../../../../../PretrainedModels/VGG19_legacy.model"
+    feature_node_name = "data"
+    conv5_node_name = "relu5_4"  # "z.x._.x._.x.x_output"
+    pool3_node_name = "pool5"  # "z.x._.x._.x_output"
+    h2d_node_name = "drop7"  # "z.x_output"
+
+
+# Helper to print all node names
+def print_all_node_names(model_file, is_BrainScript=True):
+    loaded_model = load_model(model_file)
+    if is_BrainScript:
+        loaded_model = combine([loaded_model.outputs[0]])
+    node_list = depth_first_search(loaded_model, lambda x: True) #x.is_output)
+    print("printing node information in the format")
+    print("node name (tensor shape)")
+    for node in node_list:
+        print(node.name, node.shape)
+
+
+def print_training_progress(trainer, mb, frequency):
     if mb % frequency == 0:
         training_loss = get_train_loss(trainer)
         eval_crit = get_train_eval_criterion(trainer)
@@ -81,17 +109,22 @@ def create_mb_source(features_stream_name, rois_stream_name, labels_stream_name,
 # Defines the Fast R-CNN network model for detecting objects in images
 def frcn_predictor(features, rois, num_classes):
     # Load the pretrained model and find nodes
-    loaded_model = load_model("../../../../../PretrainedModels/AlexNetBS.model") #, 'float')
-    feature_node = find_nodes_by_name(loaded_model, "features")
-    conv5_node   = find_nodes_by_name(loaded_model, "z.x._.x._.x.x_output")
-    pool3_node   = find_nodes_by_name(loaded_model, "z.x._.x._.x_output")
-    h2d_node     = find_nodes_by_name(loaded_model, "z.x_output")
+    loaded_model = load_model(model_file)
+    feature_node = find_by_name(loaded_model, feature_node_name)
+    conv5_node   = find_by_name(loaded_model, conv5_node_name)
+    pool3_node   = find_by_name(loaded_model, pool3_node_name)
+    h2d_node     = find_by_name(loaded_model, h2d_node_name)
 
     # Clone the conv layers of the network, i.e. from the input features up to the output of the 5th conv layer
-    conv_layers = combine([conv5_node[0].owner]).clone(CloneMethod.freeze, {feature_node[0]: Placeholder()})
+    print("Cloning conv layers for %s model (%s to %s)" % (use_model, feature_node_name, conv5_node_name))
+    conv_layers = combine([conv5_node.owner]).clone(CloneMethod.freeze, {feature_node: Placeholder()})
+
+    #import pdb
+    #pdb.set_trace()
 
     # Clone the fully connected layers, i.e. from the output of the last pooling layer to the output of the last dense layer
-    fc_layers = combine([h2d_node[0].owner]).clone(CloneMethod.clone, {pool3_node[0]: Placeholder()})
+    print("Cloning fc layers for %s model (%s to %s)" % (use_model, pool3_node_name, h2d_node_name))
+    fc_layers = combine([h2d_node.owner]).clone(CloneMethod.clone, {pool3_node: Placeholder()})
 
     # create Fast R-CNN model
     feat_norm = features - Constant(114)
@@ -203,4 +236,6 @@ def frcn_grocery(base_path, debug_output=False):
 # set_default_device(cpu())
 
 os.chdir(cntkFilesDir)
+print_all_node_names(model_file)
+
 frcn_grocery(cntkFilesDir)
