@@ -139,49 +139,6 @@ def frcn_predictor(features, rois, num_classes):
     return z
 
 
-# Defines the Fast R-CNN network model for detecting objects in images
-def frcn_predictor_dropout(features, rois, num_classes):
-    # Load the pretrained model and find nodes
-    loaded_model = load_model(model_file)
-    feature_node = find_by_name(loaded_model, feature_node_name)
-    conv5_node   = find_by_name(loaded_model, conv5_node_name)
-    pool3_node   = find_by_name(loaded_model, pool3_node_name)
-
-    h1d_node     = find_by_name(loaded_model, "h1_d")
-    h1y_node     = find_by_name(loaded_model, "h1.y")
-    h2d_node     = find_by_name(loaded_model, h2d_node_name)
-    h2y_node     = find_by_name(loaded_model, "h2.y")
-
-    dropout_rate = 0.5
-
-    print("Cloning conv layers for %s model (%s to %s)" % (use_model, feature_node_name, conv5_node_name))
-    conv_layers = combine([conv5_node.owner]).clone(CloneMethod.freeze, {feature_node: Placeholder()})
-
-    #print("Cloning fc layers for %s model (%s to %s)" % (use_model, pool3_node_name, h2d_node_name))
-    #fc_layers = combine([h2d_node.owner]).clone(CloneMethod.clone, {pool3_node: Placeholder()})
-    print("Cloning fc layers")
-    fc1_layers = combine([h1y_node.owner]).clone(CloneMethod.clone, {pool3_node: Placeholder()})
-    fc2_layers = combine([h2y_node.owner]).clone(CloneMethod.clone, {h1d_node: Placeholder()})
-
-    # create Fast R-CNN model
-    feat_norm = features - Constant(114)
-    conv_out  = conv_layers(feat_norm)
-    roi_out   = roipooling(conv_out, rois, (roi_dim,roi_dim)) # rename to roi_max_pooling
-    #fc_out    = fc_layers(roi_out)
-    fc1_out    = fc1_layers(roi_out)
-    d1_out = dropout(fc1_out, dropout_rate)
-    fc2_out    = fc2_layers(d1_out)
-    d2_out = dropout(fc2_out, dropout_rate)
-
-    fc_out = d2_out
-
-    # z = Dense((rois[0], num_classes), map_rank=1)(fc_out) --> map_rank=1 is not yet supported
-    W = parameter(shape=(4096, num_classes), init=glorot_uniform())
-    b = parameter(shape=(num_classes), init=0)
-    z = times(fc_out, W) + b
-    return z
-
-
 # Trains a Fast R-CNN network model on the grocery image dataset
 def frcn_grocery(base_path, debug_output=False):
     num_channels = 3
@@ -208,7 +165,6 @@ def frcn_grocery(base_path, debug_output=False):
 
     # Instantiate the Fast R-CNN prediction model
     frcn_output = frcn_predictor(image_input, roi_input, num_classes)
-    #frcn_output = frcn_predictor_dropout(image_input, roi_input, num_classes)
 
     ce = cross_entropy_with_softmax(frcn_output, label_input, axis=1)
     pe = classification_error(frcn_output, label_input, axis=1)
@@ -217,11 +173,10 @@ def frcn_grocery(base_path, debug_output=False):
     epoch_size = 25                    # for now we manually specify epoch size
     mb_size = 5 # 2
     max_epochs = 20 # 17
-    momentum_time_constant = 19 # -mb_size/np.log(0.9)
+    momentum_time_constant = 20 # 20 # -mb_size/np.log(0.9) # 19
     l2_reg_weight = 0.0005
 
     lr_per_sample = [0.00001] * 10 + [0.000001] * 5 + [0.0000001]
-    #lr_per_sample = [0.000001] * 20 + [0.0000001] * 10 + [0.00000001]
     lr_schedule = learning_rate_schedule(lr_per_sample, unit=UnitType.sample)
     mm_schedule = momentum_as_time_constant_schedule(momentum_time_constant)
 
