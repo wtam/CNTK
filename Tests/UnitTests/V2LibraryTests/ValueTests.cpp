@@ -78,7 +78,7 @@ void CheckValue(const ValuePtr testValue, const NDShape& sampleShape, const vect
 
 // Check the actual Value match the expected shape and the given data (in onehot vector format)
 template <typename ElementType>
-void CheckValue(const ValuePtr testValue, const size_t vocabSize, const vector<vector<size_t>>& expectedData, const vector<size_t>& seqLenList)
+void CheckValue(const ValuePtr testValue, const size_t dimension, const vector<vector<size_t>>& expectedData, const vector<size_t>& seqLenList)
 {
     // Check parameters
     if (expectedData.size() != seqLenList.size())
@@ -96,7 +96,7 @@ void CheckValue(const ValuePtr testValue, const size_t vocabSize, const vector<v
     // Check shape
     NDShape shape = testValue->Shape();
     size_t valueRank = shape.Rank();
-    if (valueRank < 2 || valueRank > 3 || shape[0] != vocabSize)
+    if (valueRank < 2 || valueRank > 3 || shape[0] != dimension)
     {
         ReportFailure("The shape of the value does not match\n");
     }
@@ -118,7 +118,7 @@ void CheckValue(const ValuePtr testValue, const size_t vocabSize, const vector<v
         size_t seqLen = seqLenList[seq];
         for (size_t sample = 0; sample < seqLen; sample++)
         {
-            for (size_t c = 0; c < vocabSize; c++, oIndex++)
+            for (size_t c = 0; c < dimension; c++, oIndex++)
             {
                 if (outputData[oIndex] != 0)
                 {
@@ -134,7 +134,7 @@ void CheckValue(const ValuePtr testValue, const size_t vocabSize, const vector<v
             }
         }
         // Skip mask data
-        oIndex += (maxSeqLen - seqLen) * vocabSize;
+        oIndex += (maxSeqLen - seqLen) * dimension;
     }
 }
 
@@ -677,6 +677,59 @@ void SparseSequenceBatchValueCreationTest(size_t vocabSize, size_t maxAllowedSeq
 
     if (!Internal::AreEqual(*denseSequenceBatch, *sparseSequenceBatchValueConvertedToDense))
         ReportFailure("Sparse sequence batch does not match expectation");
+}
+
+template <typename ElementType>
+void CreateBatchTest(const DeviceDescriptor device, bool readOnly)
+{
+    size_t numAxes = 3;
+    size_t maxDimSize = 20; 
+    NDShape sampleShape = CreateShape(numAxes, maxDimSize);
+
+    vector<ElementType> batch1 = {};
+    auto val1 = Value::CreateBatch(sampleShape, batch1, device, readOnly);
+    CheckValue(val1, sampleShape, { batch1 }, 0);
+
+    
+
+
+
+
+    std::vector<std::vector<ElementType>> data;
+    ValuePtr testValue;
+
+    // single sequence, single sample
+    std::vector<size_t> seqLenList = { 1 };
+    data = GenerateSequences<ElementType>(seqLenList, sampleShape);
+    testValue = Value::Create(sampleShape, data, device, readOnly);
+    CheckValue(testValue, sampleShape, data, seqLenList);
+
+    // Single sequence, multiple samples
+    seqLenList = { 2 };
+    data = GenerateSequences<ElementType>(seqLenList, sampleShape);
+    testValue = Value::Create(sampleShape, data, device, readOnly);
+    CheckValue(testValue, sampleShape, data, seqLenList);
+
+    // Batch with sequences
+
+    // Same sequence length for testing no NDMask is needed.
+    size_t seqLen = 4;
+    int testRun = 3;
+    size_t maxNumOfSequences = 60;
+    // This is only used to generate number of sequnces, so boost distribution is not needed.
+    std::default_random_engine generator;
+    std::uniform_int_distribution<size_t> distribution(1, maxNumOfSequences);
+    for (int i = 0; i < testRun; i++)
+    {
+        size_t numberOfSequences = distribution(generator);
+        std::vector<size_t> seqLenListBatch(numberOfSequences, seqLen);
+
+        data = GenerateSequences<ElementType>(seqLenListBatch, sampleShape);
+        // Create the Value object based on the given data and shape.
+        testValue = Value::Create(sampleShape, data, device, readOnly);
+        // Check whether the created value matches expected shape and data.
+        CheckValue(testValue, sampleShape, data, seqLenListBatch);
+    }
 }
 
 void ValueTests()
