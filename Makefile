@@ -964,7 +964,7 @@ endif
 ########################################
 
 
-ifeq ("$(CNTK_ENABLE_ASGD)","true")
+ifeq ("$(CNTK_ENABLE_ASGD)","true-abcd")
 
 ifeq (,$(wildcard Source/Multiverso/include/multiverso/*.h))
   $(error Build with Multiverso was requested but cannot find the code. Please check https://github.com/Microsoft/CNTK/wiki/Multiple-GPUs-and-machines#24-data-parallel-asgd to learn more.)
