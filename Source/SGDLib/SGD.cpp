@@ -2466,7 +2466,7 @@ int SGD<ElemType>::DetermineStartEpoch(const bool makeMode)
     wstring curEpochFile = GetModelNameForEpoch(int(m_maxEpochs) - 1);
     for (int e = int(m_maxEpochs) - 1; e >= -1; e--)
     {
-        const wstring prevEpochFile = GetModelNameForEpoch(e - 1);
+        const wstring prevEpochFile = GetModelNameForEpoch(e);
 
         if (msra::files::fuptodate(curEpochFile, prevEpochFile, false))
         {
