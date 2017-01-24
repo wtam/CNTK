@@ -92,14 +92,14 @@ namespace CNTK
     }
 
     template <typename ElementType>
-    /*static*/ ValuePtr Value::Create(size_t vocabularySize, const std::vector<std::vector<size_t>>& oneHotSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/)
+    /*static*/ ValuePtr Value::Create(size_t dimension, const std::vector<std::vector<size_t>>& oneHotSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/)
     {
         NDMaskPtr deviceValueMask = CreateMask(1, oneHotSequences, sequenceStartFlags, DeviceDescriptor::CPUDevice());
         // If deviceValueMask is null, all the sequences have the same length.
         size_t maxSequenceLength = (deviceValueMask == nullptr) ? oneHotSequences[0].size() : deviceValueMask->Shape()[0];
 
         size_t numSequences = oneHotSequences.size();
-        NDShape sampleShape = { vocabularySize };
+        NDShape sampleShape = { dimension };
         NDShape valueDataShape = sampleShape.AppendShape({ maxSequenceLength, numSequences });
         size_t numCSCCols = valueDataShape.SubShape(1).TotalSize() + 1;
         std::vector<SparseIndexType> colStarts(numCSCCols);
@@ -113,7 +113,7 @@ namespace CNTK
             {
                 colStarts[(i * maxSequenceLength) + j] = (SparseIndexType)nonZeroValues.size();
                 nonZeroValues.push_back(1);
-                if (oneHotSequences[i][j] >= vocabularySize)
+                if (oneHotSequences[i][j] >= dimension)
                     InvalidArgument("Value::Create: one-hot data exceeds vocabulary size");
                 rowIndices.push_back((SparseIndexType)(oneHotSequences[i][j]));
             }
@@ -313,6 +313,87 @@ namespace CNTK
         }
 
         return Create(sampleShape, sequencesData, sequenceStartFlags, device, readOnly, /*createNewCopy =*/ true);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateBatch(const NDShape& sampleShape, const std::vector<ElementType>& batch, const DeviceDescriptor& device, bool readOnly /*= false */)
+    {
+        auto shapeSize = sampleShape.TotalSize();
+        if (batch.size() % shapeSize != 0)
+            InvalidArgument("The number of elements in the batch must be a multiple of the size of the shape");
+        auto count = batch.size() / shapeSize;
+        std::vector<std::vector<ElementType>> input;
+        for (size_t i = 0; i < count; i++)
+        {
+            std::vector<ElementType> seq(batch.begin() + i * shapeSize, batch.begin() + (i + 1) * shapeSize);
+            input.push_back(seq);
+        }
+        // Pass the empty seqStartFlags means all sequences have the start flag with true.
+        return Create(sampleShape, input, {}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateSequence(const NDShape& sampleShape, const std::vector<ElementType>& sequence, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly /*= false */)
+    {
+        std::vector<std::vector<ElementType>> input = {sequence};
+        return Create(sampleShape, input, {sequenceStartFlag}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateSequence(const NDShape& sampleShape, const std::vector<ElementType>& sequence, const DeviceDescriptor& device, bool /*= false */)
+    {
+        std::vector<std::vector<ElementType>> input = { sequence };
+        return Create(sampleShape, input, {}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateBatchOfSequences(const NDShape& sampleShape, const std::vector<std::vector<ElementType>>& batchOfSequences, const std::vector<bool>& sequenceStartFlag, const DeviceDescriptor& device, bool readOnly /*= false */)
+    {
+        return Create(sampleShape, batchOfSequences, sequenceStartFlag, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateBatchOfSequences(const NDShape& sampleShape, const std::vector<std::vector<ElementType>>& batchOfSequences, const DeviceDescriptor& device, bool readOnly /*= false */)
+    {
+        return Create(sampleShape, batchOfSequences, {}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateBatch(size_t dimension, const std::vector<size_t>& oneHotBatch, const DeviceDescriptor& device, bool readOnly/* = false*/)
+    {
+        std::vector<std::vector<size_t>> input;
+        for (size_t i = 0; i < oneHotBatch.size(); i++)
+        {
+            input.push_back({oneHotBatch[i]});
+        }
+        // Pass the empty seqStartFlags means all sequences have the start flag with true.
+        return Create<ElementType>(dimension, input, {}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateSequence(size_t dimension, const std::vector<size_t>& oneHotSequence, const DeviceDescriptor& device, bool readOnly/* = false*/)
+    {
+        std::vector<std::vector<size_t>> input = { oneHotSequence };
+        return Create<ElementType>(dimension, input, {}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateSequence(size_t dimension, const std::vector<size_t>& oneHotSequence, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly/* = false*/)
+    {
+        std::vector<std::vector<size_t>> input = { oneHotSequence };
+        return Create<ElementType>(dimension, input, {sequenceStartFlag}, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateBatchOfSequences(size_t dimension, const std::vector<std::vector<size_t>>& oneHotBatchOfSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/)
+    {
+        return Create<ElementType>(dimension, oneHotBatchOfSequences, sequenceStartFlags, device, readOnly);
+    }
+
+    template <typename ElementType>
+    /*static*/ ValuePtr Value::CreateBatchOfSequences(size_t dimension, const std::vector<std::vector<size_t>>& oneHotBatchOfSequences, const DeviceDescriptor& device, bool readOnly/* = false*/)
+    {
+        return Create<ElementType>(dimension, oneHotBatchOfSequences, {}, device, readOnly);
     }
 
     /*virtual*/ Value::~Value()
@@ -556,8 +637,20 @@ namespace CNTK
     // Explicit template instantiations
     template /*static*/ CNTK_API ValuePtr Value::Create<float>(const NDShape& sampleShape, const std::vector<std::vector<float>>& sequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
     template /*static*/ CNTK_API ValuePtr Value::Create<double>(const NDShape& sampleShape, const std::vector<std::vector<double>>& sequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
-    template /*static*/ CNTK_API ValuePtr Value::Create<float>(size_t vocabSize, const std::vector<std::vector<size_t>>& oneHotSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
-    template /*static*/ CNTK_API ValuePtr Value::Create<double>(size_t vocabSize, const std::vector<std::vector<size_t>>& oneHotSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::Create<float>(size_t dimension, const std::vector<std::vector<size_t>>& oneHotSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::Create<double>(size_t dimension, const std::vector<std::vector<size_t>>& oneHotSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatch<float>(const NDShape& sampleShape, const std::vector<float>& batch, const DeviceDescriptor& device, bool readOnly /*= false */);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatch<double>(const NDShape& sampleShape, const std::vector<double>& batch, const DeviceDescriptor& device, bool readOnly /*= false */);
+    template /*static*/ CNTK_API ValuePtr Value::CreateSequence<float>(const NDShape& sampleShape, const std::vector<float>& sequence, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly /*= false */);
+    template /*static*/ CNTK_API ValuePtr Value::CreateSequence<double>(const NDShape& sampleShape, const std::vector<double>& sequence, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly /*= false */);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatchOfSequences<float>(const NDShape& sampleShape, const std::vector<std::vector<float>>& batchOfSequences, const std::vector<bool>& sequenceStartFlag, const DeviceDescriptor& device, bool readOnly /*= false */);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatchOfSequences<double>(const NDShape& sampleShape, const std::vector<std::vector<double>>& batchOfSequences, const std::vector<bool>& sequenceStartFlag, const DeviceDescriptor& device, bool readOnly /*= false */);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatch<float>(size_t dimension, const std::vector<size_t>& oneHotBatch, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatch<double>(size_t dimension, const std::vector<size_t>& oneHotBatch, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::CreateSequence<float>(size_t dimension, const std::vector<size_t>& oneHotSequence, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::CreateSequence<double>(size_t dimension, const std::vector<size_t>& oneHotSequence, bool sequenceStartFlag, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatchOfSequences<float>(size_t dimension, const std::vector<std::vector<size_t>>& oneHotBatchOfSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
+    template /*static*/ CNTK_API ValuePtr Value::CreateBatchOfSequences<double>(size_t dimension, const std::vector<std::vector<size_t>>& oneHotBatchOfSequences, const std::vector<bool>& sequenceStartFlags, const DeviceDescriptor& device, bool readOnly/* = false*/);
     template CNTK_API void Value::CopyVariableValueToVector<float>(const Variable& outputVariable, std::vector<std::vector<float>>& sequences);
     template CNTK_API void Value::CopyVariableValueToVector<double>(const Variable& outputVariable, std::vector<std::vector<double>>& sequences);
     template CNTK_API void Value::CopyVariableValueToVector<float>(const Variable& outputVariable, std::vector<std::vector<size_t>>& sequences);
