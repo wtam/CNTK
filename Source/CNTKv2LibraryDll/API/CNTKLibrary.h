@@ -2403,7 +2403,8 @@ namespace CNTK
         CNTK_API BackPropStatePtr Forward(const std::unordered_map<Variable, ValuePtr>& arguments,
                                           std::unordered_map<Variable, ValuePtr>& outputs,
                                           const DeviceDescriptor& computeDevice = DeviceDescriptor::UseDefaultDevice(),
-                                          const std::unordered_set<Variable>& outputsToRetainBackwardStateFor = {});
+                                          const std::unordered_set<Variable>& outputsToRetainBackwardStateFor = {},
+                                          const std::unordered_set<Variable>& inputsToExcludeGradientsFor = {});
 
         ///
         /// Backpropagates supplied 'rootGradientValues' for one or more of the output variables of the Function, to produce gradient Values

@@ -70,11 +70,28 @@ namespace CNTK
         auto modelParameters = m_combinedTrainingFunction->Parameters();
         std::unordered_set<Parameter> learnerParameters = m_parameterLearners->GetParameters();
         std::unordered_set<Parameter> modelParametersSet(modelParameters.begin(), modelParameters.end());
-        if (modelParametersSet != learnerParameters)
-            InvalidArgument("Trainer ctor: Union of the parameters covered by the specified parameterLearners should match the specified model's parameters");
+        std::unordered_set<Parameter> modelParametersNotCoveredByLearners;
+        std::unordered_set<Parameter> learnerParametersNotPartOfModel;
+        for (const auto& learnerParameter : learnerParameters)
+        {
+            if (modelParametersSet.find(learnerParameter) == modelParametersSet.end())
+                learnerParametersNotPartOfModel.insert(learnerParameter);
+        }
+
+        for (const auto& modelParameter : modelParametersSet)
+        {
+            if (learnerParameters.find(modelParameter) == learnerParameters.end())
+                modelParametersNotCoveredByLearners.insert(modelParameter);
+        }
+
+        if (!learnerParametersNotPartOfModel.empty())
+            InvalidArgument("Trainer ctor: %d of the learner parameters are not part of the model specified", (int)learnerParametersNotPartOfModel.size());
+
+        if (!modelParametersNotCoveredByLearners.empty())
+            fprintf(stderr, "[Note:] Trainer ctor: %d of the model parameters are not covered by any of the specified Learners; these parameters will not be learned", (int)modelParametersNotCoveredByLearners.size());
+
         m_distributed = m_parameterLearners->IsDistributed();
     }
-
 
     static double GetScalarValue(const ValuePtr& value)
     {
